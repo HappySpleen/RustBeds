@@ -1,10 +1,11 @@
 package me.gabij.multiplebedspawn.listeners;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
-import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.BedsDataType;
-import me.gabij.multiplebedspawn.models.PlayerBedsData;
-import org.bukkit.*;
+import me.gabij.multiplebedspawn.storage.StoredBed;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -16,15 +17,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static me.gabij.multiplebedspawn.utils.BedsUtils.checksIfBedExists;
+import static me.gabij.multiplebedspawn.utils.KeyUtils.key;
+import static me.gabij.multiplebedspawn.utils.KeyUtils.removeAll;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.*;
-import static me.gabij.multiplebedspawn.utils.RunCommandUtils.runCommandOnSpawn;;
+import static me.gabij.multiplebedspawn.utils.RunCommandUtils.runCommandOnSpawn;
 
 @SuppressWarnings("deprecation")
 public class RespawnMenuHandler implements Listener {
@@ -35,249 +39,172 @@ public class RespawnMenuHandler implements Listener {
         RespawnMenuHandler.plugin = plugin;
     }
 
-    public static void updateItens(Inventory gui, Player p) {
-
-        if (gui.getViewers().toString().length() > 2) {
-
-            ItemStack itens[] = gui.getContents();
-            boolean hasActiveCooldown = false;
-            for (ItemStack item : itens) {
-
-                if (item != null && item.hasItemMeta()) {
-
-                    ItemMeta item_meta = item.getItemMeta();
-                    PersistentDataContainer data = item_meta.getPersistentDataContainer();
-
-                    if (data.has(new NamespacedKey(plugin, "cooldown"), PersistentDataType.LONG)
-                            && data.has(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING)) {
-
-                        long cooldown = data.get(new NamespacedKey(plugin, "cooldown"), PersistentDataType.LONG);
-                        List<String> lore = item_meta.getLore();
-
-                        int optionsCount = 2;
-                        if (plugin.getConfig().getBoolean("disable-bed-world-desc")) {
-                            optionsCount--;
-                        }
-                        if (plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-                            optionsCount--;
-                        }
-                        if (cooldown > System.currentTimeMillis()) {
-                            hasActiveCooldown = true;
-                            long sec = (cooldown - System.currentTimeMillis()) / 1000;
-                            String seconds = Long.toString(sec);
-                            if (lore == null) {
-                                lore = new ArrayList<>();
-                            }
-                            if (lore.size() > optionsCount) {
-                                lore.set(
-                                        optionsCount,
-                                        ChatColor.GOLD + "" + ChatColor.BOLD
-                                                + plugin.getMessages("cooldown-text").replace("{1}", seconds));
-                            } else {
-                                lore.add(
-                                        ChatColor.GOLD + "" + ChatColor.BOLD
-                                                + plugin.getMessages("cooldown-text").replace("{1}", seconds));
-                            }
-                        } else {
-                            if (lore.size() > optionsCount) {
-                                lore.remove(optionsCount);
-                            }
-                        }
-
-                        item_meta.setLore(lore);
-                        item.setItemMeta(item_meta);
-                    }
-                }
-            }
-
-            if (hasActiveCooldown) {
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    updateItens(gui, p);
-                }, 10L);
-            }
-
+    public static void updateItens(Inventory gui, Player player) {
+        if (gui.getViewers().isEmpty()) {
+            return;
         }
 
+        boolean hasActiveCooldown = false;
+        for (ItemStack item : gui.getContents()) {
+            if (item == null || !item.hasItemMeta()) {
+                continue;
+            }
+
+            ItemMeta itemMeta = item.getItemMeta();
+            PersistentDataContainer data = itemMeta.getPersistentDataContainer();
+            if (!data.has(key("bedId"), PersistentDataType.STRING)) {
+                continue;
+            }
+
+            String bedId = data.get(key("bedId"), PersistentDataType.STRING);
+            Optional<StoredBed> bed = findBed(bedId);
+            if (bed.isEmpty()) {
+                continue;
+            }
+
+            updateBedItem(item, itemMeta, bed.get(), null);
+            if (bed.get().hasCooldown()) {
+                hasActiveCooldown = true;
+            }
+        }
+
+        if (hasActiveCooldown) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> updateItens(gui, player), 10L);
+        }
     }
 
-    public static void openRespawnMenu(Player p) {
+    public static void openRespawnMenu(Player player) {
+        ensureLegacyPlayerData(player);
+        List<StoredBed> beds = new ArrayList<>(getPlayerBeds(player));
+        beds.removeIf(bed -> !checksIfBedExists(bed.getBedLocation(), player, bed.getBedId()));
 
-        // gets how much beds player has to use on for loop and for the if check
-        PersistentDataContainer playerData = p.getPersistentDataContainer();
-        PlayerBedsData playerBedsData = null;
-
-        int playerBedsCount = getPlayerBedsCount(p);
-
-        if (playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
-            playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
+        if (beds.isEmpty()) {
+            PersistentDataContainer playerData = player.getPersistentDataContainer();
+            if (playerData.has(key("spawnLoc"), PersistentDataType.STRING)) {
+                Location location = getPlayerRespawnLoc(player);
+                removeAll(playerData, plugin.getName(), "spawnLoc");
+                undoPropPlayer(player);
+                Bukkit.getScheduler().runTaskLater(plugin, () -> player.teleport(location), 1L);
+            }
+            return;
         }
 
-        // if the player doesnt have any beds than dont open menu
-        if (playerBedsCount > 0) {
+        setPropPlayer(player);
+        Inventory gui = Bukkit.createInventory(player, getInventorySize(beds.size() + 1),
+                ChatColor.translateAlternateColorCodes('&', plugin.getMessages("menu-title")));
 
-            // sets stuff to player be invul and invis on spawn
-            setPropPlayer(p);
-
-            // create inventory
-            int bedCount = playerBedsCount + 1;
-            Inventory gui = Bukkit.createInventory(p, 9 * ((int) Math.ceil(bedCount / (Double) 9.0)),
-                    ChatColor.translateAlternateColorCodes('&', plugin.getMessages("menu-title")));
-
-            HashMap<String, BedData> beds = playerBedsData.getPlayerBedData();
-            if (!plugin.getConfig().getBoolean("link-worlds")) {
-                World world = getPlayerRespawnLoc(p).getWorld();
-                HashMap<String, BedData> bedsT = (HashMap<String, BedData>) beds.clone();
-                beds.forEach((uuid, bed) -> {
-                    // clear lists so beds are only from the world that player is in
-                    if (!bed.getBedWorld().equalsIgnoreCase(world.getName())) {
-                        bedsT.remove(uuid);
-                    }
-                });
-                beds = bedsT;
+        AtomicBoolean hasCooldown = new AtomicBoolean(false);
+        AtomicInteger counter = new AtomicInteger(1);
+        for (StoredBed bed : beds) {
+            ItemStack item = new ItemStack(bed.getMaterial(), 1);
+            ItemMeta itemMeta = item.getItemMeta();
+            updateBedItem(item, itemMeta, bed, counter.getAndIncrement());
+            if (bed.hasCooldown()) {
+                hasCooldown.set(true);
             }
-            AtomicBoolean hasCooldown = new AtomicBoolean(false);
-            AtomicInteger cont = new AtomicInteger(1);
-            beds.forEach((uuid, bed) -> {
-                ItemStack item = new ItemStack(bed.getBedMaterial(), 1);
-                ItemMeta item_meta = item.getItemMeta();
-                String bedName = plugin.getMessages("default-bed-name").replace("{1}", cont.toString());
-                item_meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', bedName));
-                if (bed.getBedName() != null) {
-                    item_meta.setDisplayName(bed.getBedName());
-                }
-                PersistentDataContainer data = item_meta.getPersistentDataContainer();
-
-                List<String> lore = new ArrayList<>();
-                if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
-                    lore.add(ChatColor.DARK_PURPLE + bed.getBedWorld().toUpperCase());
-                }
-                if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-                    String[] location = bed.getBedCoords().split(":");
-                    String locText = "X: " + location[0].substring(0, location[0].length() - 2) +
-                            " Y: " + location[1].substring(0, location[1].length() - 2) +
-                            " Z: " + location[2].substring(0, location[2].length() - 2);
-                    lore.add(ChatColor.GRAY + locText);
-                }
-                // checks if has any cooldowns
-                if (bed.getBedCooldown() > 0L) {
-
-                    long cooldown = bed.getBedCooldown();
-                    if (cooldown > System.currentTimeMillis()) { // if cooldown isnt expired
-                        hasCooldown.set(true);
-                        data.set(new NamespacedKey(plugin, "cooldown"), PersistentDataType.LONG, cooldown);
-                    } else {
-                        bed.setBedCooldown(0L);
-                    }
-
-                }
-
-                data.set(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING, uuid);
-                data.set(new NamespacedKey(plugin, "location"), PersistentDataType.STRING, bed.getBedCoords());
-                data.set(new NamespacedKey(plugin, "world"), PersistentDataType.STRING, bed.getBedWorld());
-
-                item_meta.setLore(lore);
-                item.setItemMeta(item_meta);
-                gui.addItem(item);
-                cont.getAndIncrement();
-            });
-
-            if (hasCooldown.get()) {
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    updateItens(gui, p);
-                }, 10L);
-            }
-
-            ItemStack item = new ItemStack(Material.GRASS_BLOCK, 1);
-            ItemMeta item_meta = item.getItemMeta();
-            item_meta.setDisplayName(ChatColor.YELLOW + "SPAWN");
-            item.setItemMeta(item_meta);
-            gui.setItem(9 * ((int) Math.ceil(bedCount / (Double) 9.0)) - 1, item);
-
-            // I dont know why but if openInventory is not on a scheduler is does not open
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                p.openInventory(gui);
-            }, 0L);
-
-        } else {
-
-            if (playerData.has(new NamespacedKey(plugin, "spawnLoc"))) {
-                Location location = getPlayerRespawnLoc(p);
-                playerData.remove(new NamespacedKey(plugin, "spawnLoc"));
-                undoPropPlayer(p);
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    p.teleport(location);
-                }, 1L);
-            }
-
+            gui.addItem(item);
         }
 
+        ItemStack spawnItem = new ItemStack(Material.GRASS_BLOCK, 1);
+        ItemMeta spawnMeta = spawnItem.getItemMeta();
+        spawnMeta.setDisplayName(ChatColor.YELLOW + "SPAWN");
+        spawnItem.setItemMeta(spawnMeta);
+        gui.setItem(gui.getSize() - 1, spawnItem);
+
+        if (hasCooldown.get()) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> updateItens(gui, player), 10L);
+        }
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> player.openInventory(gui), 0L);
     }
 
     @EventHandler
-    public void onMenuClick(InventoryClickEvent e) {
-
-        if (e.getView().getTitle().equalsIgnoreCase(plugin.getMessages("menu-title"))) {
-            e.setCancelled(true);
-            Player p = (Player) e.getWhoClicked();
-            if (e.getCurrentItem() != null) {
-                PersistentDataContainer playerData = p.getPersistentDataContainer();
-                int playerBedsCount = 0;
-                PlayerBedsData playerBedsData = null;
-                if (playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
-                    playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
-                    if (playerBedsData != null && playerBedsData.getPlayerBedData() != null) {
-                        playerBedsCount = playerBedsData.getPlayerBedData().size();
-                    }
-                }
-                double bedCount = playerBedsCount + 1;
-                int index = e.getSlot();
-                if (e.getCurrentItem().getType().toString().toLowerCase().contains("bed")) {
-
-                    ItemMeta item_meta = e.getCurrentItem().getItemMeta();
-                    PersistentDataContainer data = item_meta.getPersistentDataContainer();
-
-                    String bedCoord[] = data.get(new NamespacedKey(plugin, "location"), PersistentDataType.STRING)
-                            .split(":");
-                    String world = data.get(new NamespacedKey(plugin, "world"), PersistentDataType.STRING);
-                    Location location = new Location(Bukkit.getWorld(world), Double.parseDouble(bedCoord[0]),
-                            Double.parseDouble(bedCoord[1]), Double.parseDouble(bedCoord[2]));
-                    String uuid = data.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
-
-                    if (checksIfBedExists(location, p, uuid)) {
-
-                        teleportPlayer(p, data, playerData, playerBedsData, uuid);
-
-                    } else {
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                            p.closeInventory();
-                        }, 0L);
-                    }
-
-                } else if (index == 9 * ((int) Math.ceil(bedCount / (Double) 9.0)) - 1) {
-                    undoPropPlayer(p);
-                    Location location = getPlayerRespawnLoc(p);
-                    playerData.remove(new NamespacedKey(plugin, "spawnLoc"));
-                    p.teleport(location);
-                    runCommandOnSpawn(p);
-                }
-            }
-
+    public void onMenuClick(InventoryClickEvent event) {
+        if (!event.getView().getTitle().equalsIgnoreCase(plugin.getMessages("menu-title"))) {
+            return;
         }
 
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || event.getCurrentItem() == null
+                || !event.getCurrentItem().hasItemMeta()) {
+            return;
+        }
+
+        ItemMeta itemMeta = event.getCurrentItem().getItemMeta();
+        PersistentDataContainer data = itemMeta.getPersistentDataContainer();
+        if (data.has(key("bedId"), PersistentDataType.STRING)) {
+            String bedId = data.get(key("bedId"), PersistentDataType.STRING);
+            Optional<StoredBed> bed = findBed(bedId);
+
+            if (bed.isPresent() && checksIfBedExists(bed.get().getBedLocation(), player, bedId)) {
+                if (bed.get().hasCooldown()) {
+                    updateItens(event.getClickedInventory(), player);
+                    return;
+                }
+                teleportPlayer(player, bed.get());
+            } else {
+                Bukkit.getScheduler().runTaskLater(plugin, (Runnable) player::closeInventory, 0L);
+            }
+            return;
+        }
+
+        if (event.getSlot() == event.getInventory().getSize() - 1) {
+            undoPropPlayer(player);
+            Location location = getPlayerRespawnLoc(player);
+            removeAll(player.getPersistentDataContainer(), plugin.getName(), "spawnLoc");
+            player.teleport(location);
+            runCommandOnSpawn(player);
+        }
     }
 
     @EventHandler
-    public void onMenuClose(InventoryCloseEvent e) {
-
-        if (e.getView().getTitle().equalsIgnoreCase(plugin.getMessages("menu-title"))) {
-
-            Player p = (Player) e.getPlayer();
-            if (!p.getCanPickupItems()) {
-                openRespawnMenu(p);
+    public void onMenuClose(InventoryCloseEvent event) {
+        if (event.getView().getTitle().equalsIgnoreCase(plugin.getMessages("menu-title"))) {
+            Player player = (Player) event.getPlayer();
+            if (!player.getCanPickupItems()) {
+                openRespawnMenu(player);
             }
-
         }
-
     }
 
+    private static void updateBedItem(ItemStack item, ItemMeta itemMeta, StoredBed bed, Integer defaultNumber) {
+        String displayName = bed.getCustomName();
+        if (displayName == null || displayName.isBlank()) {
+            String index = defaultNumber == null ? "?" : String.valueOf(defaultNumber);
+            displayName = plugin.getMessages("default-bed-name").replace("{1}", index);
+        }
+
+        item.setType(bed.getMaterial());
+        itemMeta.setDisplayName(ChatColor.translateAlternateColorCodes('&', displayName));
+        itemMeta.getPersistentDataContainer().set(key("bedId"), PersistentDataType.STRING, bed.getBedId());
+
+        List<String> lore = new ArrayList<>();
+        if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
+            lore.add(ChatColor.DARK_PURPLE + bed.getWorldName().toUpperCase());
+        }
+        if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
+            lore.add(ChatColor.GRAY + bed.locationText());
+        }
+        if (bed.hasCooldown()) {
+            long seconds = Math.max(0, (bed.getCooldownUntil() - System.currentTimeMillis()) / 1000);
+            lore.add(ChatColor.GOLD + "" + ChatColor.BOLD
+                    + plugin.getMessages("cooldown-text").replace("{1}", String.valueOf(seconds)));
+        }
+
+        itemMeta.setLore(lore);
+        item.setItemMeta(itemMeta);
+    }
+
+    private static int getInventorySize(int bedCount) {
+        return 9 * ((int) Math.ceil(bedCount / 9.0));
+    }
+
+    private static Optional<StoredBed> findBed(String bedId) {
+        try {
+            return plugin.getBedStorage().findBedById(bedId);
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Could not load bed " + bedId + ": " + exception.getMessage());
+            return Optional.empty();
+        }
+    }
 }

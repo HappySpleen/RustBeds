@@ -13,5 +13,8 @@ permissions:
   multiplebedspawn.maxcount.*:
     description: Allows to set custom max number of beds (ignores the config)
     default: false
+  rustbeds.admin:
+    description: Allows admins to view and edit stored beds
+    default: op
 
 

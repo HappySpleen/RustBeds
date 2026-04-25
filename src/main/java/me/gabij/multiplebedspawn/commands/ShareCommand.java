@@ -1,24 +1,22 @@
 package me.gabij.multiplebedspawn.commands;
 
 import static me.gabij.multiplebedspawn.utils.BedsUtils.checkIfIsBed;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.ensureLegacyPlayerData;
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.TileState;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.entity.Player;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
-import me.gabij.multiplebedspawn.models.BedsDataType;
-import me.gabij.multiplebedspawn.models.PlayerBedsData;
+import me.gabij.multiplebedspawn.storage.StoredBed;
+
+import java.sql.SQLException;
 
 public class ShareCommand extends BukkitCommand {
     static MultipleBedSpawn plugin;
@@ -46,44 +44,24 @@ public class ShareCommand extends BukkitCommand {
             if (receiverPlayer == ownerPlayer) {
                 return false;
             }
+            ensureLegacyPlayerData(ownerPlayer);
+            ensureLegacyPlayerData(receiverPlayer);
             Block bed = checkIfIsBed(ownerPlayer.getTargetBlockExact(4));
             if (bed != null) {
-                BlockState blockState = bed.getState();
-                String bedUUID = null;
-                if (blockState instanceof TileState tileState) { // gets the bed uuid
-                    PersistentDataContainer container = tileState.getPersistentDataContainer();
-                    if (container.has(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING)) {
-                        bedUUID = container.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
-                    }
-                }
-
-                if (bedUUID == null) {
-                    ownerPlayer.sendMessage(ChatColor.RED + plugin.getMessages("bed-not-registered-message"));
-                    return false;
-                }
-
-                PlayerBedsData playerBedsData = null;
-                PersistentDataContainer playerData = ownerPlayer.getPersistentDataContainer();
-
-                if (playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
-                    playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
-                    if (playerBedsData != null && playerBedsData.getPlayerBedData() != null
-                            && playerBedsData.hasBed(bedUUID)) {
-                        PersistentDataContainer receiverData = receiverPlayer.getPersistentDataContainer();
-                        PlayerBedsData receiverBedsData = receiverData.has(new NamespacedKey(plugin, "beds"),
-                                new BedsDataType())
-                                        ? receiverData.get(new NamespacedKey(plugin, "beds"), new BedsDataType())
-                                        : new PlayerBedsData();
-
-                        playerBedsData.shareBed(receiverBedsData, bedUUID);
-                        receiverData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), receiverBedsData);
-                        playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
-
+                try {
+                    Optional<StoredBed> storedBed = plugin.getBedStorage()
+                            .findBedByLocation(bed.getWorld(), bed.getX(), bed.getY(), bed.getZ());
+                    if (storedBed.isPresent() && plugin.getBedStorage().transferOwnership(
+                            storedBed.get().getBedId(), ownerPlayer, receiverPlayer)) {
                         receiverPlayer.sendMessage(plugin.getMessages("bed-registered-successfully-message"));
                     } else {
                         ownerPlayer.sendMessage(ChatColor.RED + plugin.getMessages("bed-not-registered-message"));
                         return false;
                     }
+                } catch (SQLException exception) {
+                    plugin.getLogger().warning("Could not share bed for " + ownerPlayer.getName() + ": "
+                            + exception.getMessage());
+                    return false;
                 }
             } else {
                 plugin.getLogger().info("Not found");

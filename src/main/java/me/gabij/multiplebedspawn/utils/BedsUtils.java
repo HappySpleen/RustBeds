@@ -1,100 +1,86 @@
 package me.gabij.multiplebedspawn.utils;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
-import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.BedsDataType;
-import me.gabij.multiplebedspawn.models.PlayerBedsData;
+import me.gabij.multiplebedspawn.storage.BrokenBedNotification;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.TileState;
 import org.bukkit.block.data.type.Bed;
 import org.bukkit.entity.Player;
 import org.bukkit.permissions.PermissionAttachmentInfo;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 
-import java.util.HashMap;
+import java.sql.SQLException;
+import java.util.List;
 
 public class BedsUtils {
     static MultipleBedSpawn plugin = MultipleBedSpawn.getInstance();
 
-    public static void removePlayerBed(String bedUUID, Player p) {
-        PersistentDataContainer playerData = p.getPersistentDataContainer();
-        // checks to see if player has beds
-        if (playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
-            PlayerBedsData playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
-            HashMap<String, BedData> beds = playerBedsData.getPlayerBedData();
-            if (beds.containsKey(bedUUID)) {
-                BedData bedData = beds.get(bedUUID);
-                playerBedsData.removeBed(bedUUID);
-                playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
-
-                World world = Bukkit.getWorld(bedData.getBedWorld());
-                String loc[] = bedData.getBedCoords().split(":");
-                Location locBed = new Location(world, Double.parseDouble(loc[0]), Double.parseDouble(loc[1]),
-                        Double.parseDouble(loc[2]));
-                Block bed = world.getBlockAt(locBed);
-                if (bed.getBlockData() instanceof Bed bedPart) {
-                    // since the data is in the head we need to set the Block bed to its head
-                    if (bedPart.getPart().toString() == "FOOT") {
-                        bed = (Block) bed.getRelative(bedPart.getFacing());
-                    }
-                }
-                BlockState blockState = bed.getState();
-                if (blockState instanceof TileState tileState) {
-                    PersistentDataContainer container = tileState.getPersistentDataContainer();
-                    container.remove(new NamespacedKey(plugin, "uuid"));
-                    tileState.update();
-                }
-
-            }
+    public static void removePlayerBed(String bedId, Player player) {
+        try {
+            plugin.getBedStorage().removeOwnership(bedId, player.getUniqueId());
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Could not remove bed " + bedId + ": " + exception.getMessage());
         }
     }
 
-    public static boolean checksIfBedExists(Location locBed, Player p, String bedUUID) {
+    public static boolean checksIfBedExists(Location locBed, Player player, String bedId) {
+        if (locBed == null || locBed.getWorld() == null) {
+            return false;
+        }
+
         World world = locBed.getWorld();
         Block bed = world.getBlockAt(locBed);
-        boolean isBed = false;
-        if (bed.getBlockData() instanceof Bed bedPart) {
-            // since the data is in the head we need to set the Block bed to its head
-            if (bedPart.getPart().toString() == "FOOT") {
-                bed = (Block) bed.getRelative(bedPart.getFacing());
-            }
-            isBed = true;
-        }
+        bed = checkIfIsBed(bed);
 
-        if (!isBed) {
-
-            removePlayerBed(bedUUID, p);
+        if (bed == null) {
+            handleBrokenBed(world, locBed.getBlockX(), locBed.getBlockY(), locBed.getBlockZ());
             return false;
-
-        } else {
-
-            BlockState blockState = bed.getState();
-            if (blockState instanceof TileState tileState) {
-                PersistentDataContainer container = tileState.getPersistentDataContainer();
-                String uuid = container.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
-
-                if (container == null || uuid == null || !uuid.equalsIgnoreCase(bedUUID)) {
-                    removePlayerBed(bedUUID, p);
-                    return false;
-                }
-
-            }
-
         }
 
-        return true;
+        try {
+            int bedX = bed.getX();
+            int bedY = bed.getY();
+            int bedZ = bed.getZ();
+            return plugin.getBedStorage().findBedByLocation(world, bedX, bedY, bedZ)
+                    .map(storedBed -> storedBed.getBedId().equalsIgnoreCase(bedId))
+                    .orElse(false);
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Could not verify bed " + bedId + ": " + exception.getMessage());
+            return false;
+        }
+    }
+
+    public static void handleBrokenBed(Block block) {
+        Block bed = checkIfIsBed(block);
+        if (bed == null) {
+            return;
+        }
+        handleBrokenBed(bed.getWorld(), bed.getX(), bed.getY(), bed.getZ());
+    }
+
+    public static void handleBrokenBed(World world, int x, int y, int z) {
+        try {
+            List<BrokenBedNotification> notifications = plugin.getBedStorage().markBedBroken(world, x, y, z);
+            notifyOwners(notifications);
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Could not mark broken bed at " + world.getName() + " "
+                    + x + " " + y + " " + z + ": " + exception.getMessage());
+        }
+    }
+
+    public static void notifyOwners(List<BrokenBedNotification> notifications) {
+        for (BrokenBedNotification notification : notifications) {
+            Player player = Bukkit.getPlayer(notification.getPlayerUuid());
+            if (player != null && player.isOnline()) {
+                player.sendMessage(buildBrokenBedMessage(notification));
+            }
+        }
     }
 
     public static Block checkIfIsBed(Block block) {
         if (block != null && block.getBlockData() instanceof Bed bedPart) {
-            // since the data is in the head we need to set the Block bed to its head
-            if (bedPart.getPart().toString() == "FOOT") {
+            if (bedPart.getPart() == Bed.Part.FOOT) {
                 block = block.getRelative(bedPart.getFacing());
             }
             return block;
@@ -139,5 +125,18 @@ public class BedsUtils {
             maxBeds = maxBedsByPerms;
         }
         return maxBeds;
+    }
+
+    public static String buildBrokenBedMessage(BrokenBedNotification notification) {
+        String bedName = notification.getBedName();
+        if (bedName == null || bedName.isBlank()) {
+            bedName = plugin.getMessages("broken-bed-default-name");
+        }
+        return plugin.getMessages("bed-broken-message")
+                .replace("{bed}", bedName)
+                .replace("{world}", notification.getWorldName())
+                .replace("{x}", String.valueOf(notification.getX()))
+                .replace("{y}", String.valueOf(notification.getY()))
+                .replace("{z}", String.valueOf(notification.getZ()));
     }
 }

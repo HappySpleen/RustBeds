@@ -1,25 +1,20 @@
 package me.gabij.multiplebedspawn.listeners;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
-import me.gabij.multiplebedspawn.models.BedsDataType;
-import me.gabij.multiplebedspawn.models.PlayerBedsData;
+import me.gabij.multiplebedspawn.storage.RegisterBedResult;
 import org.bukkit.ChatColor;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.TileState;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerBedEnterEvent;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 
+import java.sql.SQLException;
 import java.util.List;
-import java.util.UUID;
 
+import static me.gabij.multiplebedspawn.utils.BedsUtils.checkIfIsBed;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.getMaxNumberOfBeds;
-import static me.gabij.multiplebedspawn.utils.PlayerUtils.getPlayerBedsCount;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.ensureLegacyPlayerData;
 
 public class PlayerGetsOnBedListener implements Listener {
 
@@ -39,66 +34,32 @@ public class PlayerGetsOnBedListener implements Listener {
         boolean passLists = (!denylist.contains(world)) && (allowlist.contains(world) || allowlist.isEmpty());
 
         if (passLists) {
-            Block bed = e.getBed();
-            PersistentDataContainer playerData = player.getPersistentDataContainer();
-
+            ensureLegacyPlayerData(player);
+            Block bed = checkIfIsBed(e.getBed());
             int maxBeds = getMaxNumberOfBeds(player);
-            PlayerBedsData playerBedsData = null;
+            try {
+                RegisterBedResult result = plugin.getBedStorage().registerBed(
+                        player,
+                        bed,
+                        plugin.getConfig().getBoolean("exclusive-bed"),
+                        maxBeds,
+                        plugin.getConfig().getBoolean("link-worlds"));
 
-            int playerBedsCount = getPlayerBedsCount(player);
-
-            if (playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
-                playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
-            }
-
-            if (playerBedsCount < maxBeds) {
-
-                UUID randomUUID = UUID.randomUUID();
-                BlockState blockState = bed.getState();
-
-                if (blockState instanceof TileState tileState) { // sets a randomUUID to the bed if the bed doesnt have
-                                                                 // it or get the bed uuid
-                    PersistentDataContainer container = tileState.getPersistentDataContainer();
-
-                    if (!container.has(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING)) {
-                        container.set(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING, "" + randomUUID);
-                    } else {
-                        randomUUID = UUID.fromString(
-                                container.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING));
-                        if ((playerBedsData == null
-                                || (playerBedsData != null && !playerBedsData.hasBed(randomUUID.toString())))
-                                && plugin.getConfig().getBoolean("exclusive-bed")) {
-                            player.sendMessage(ChatColor.RED + plugin.getMessages("bed-already-has-owner"));
-                            return;
-                        }
-                    }
-
-                    tileState.update();
-
-                }
-
-                boolean registerBed = false;
-                if (playerBedsData == null) { // if the player doesnt have any bed
-
-                    playerBedsData = new PlayerBedsData(player, bed, randomUUID.toString());
-                    registerBed = true;
-
-                } else if (!playerBedsData.hasBed(randomUUID.toString())) {
-
-                    playerBedsData.setNewBed(player, bed, randomUUID.toString());
-                    registerBed = true;
-
-                }
-
-                if (registerBed) {
-                    playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
+                if (result == RegisterBedResult.CREATED || result == RegisterBedResult.ADDED_OWNER) {
                     player.sendMessage(ChatColor.translateAlternateColorCodes('&',
                             plugin.getMessages("bed-registered-successfully-message")));
+                } else if (result == RegisterBedResult.ALREADY_REGISTERED) {
+                    player.sendMessage(ChatColor.RED + plugin.getMessages("bed-already-registered-message"));
+                } else if (result == RegisterBedResult.EXCLUSIVE_CONFLICT) {
+                    player.sendMessage(ChatColor.RED + plugin.getMessages("bed-already-has-owner"));
+                } else if (result == RegisterBedResult.MAX_BEDS_REACHED) {
+                    player.sendMessage(ChatColor.RED + plugin.getMessages("max-beds-message"));
                 }
-
-            } else {
-                player.sendMessage(ChatColor.RED + plugin.getMessages("max-beds-message"));
+            } catch (SQLException exception) {
+                plugin.getLogger().warning("Could not register bed for " + player.getName() + ": "
+                        + exception.getMessage());
             }
+
             player.setBedSpawnLocation(null);
             e.setCancelled(plugin.getConfig().getBoolean("disable-sleeping"));
         }

@@ -2,13 +2,13 @@ package me.gabij.multiplebedspawn.commands;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 
-import org.bukkit.NamespacedKey;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import static me.gabij.multiplebedspawn.utils.KeyUtils.hasAny;
 import static me.gabij.multiplebedspawn.listeners.RespawnMenuHandler.openRespawnMenu;
 
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ public class RespawnMenuCommand extends BukkitCommand {
 
             PersistentDataContainer playerData = p.getPersistentDataContainer();
 
-            if (playerData.has(new NamespacedKey(plugin, "hasProp"), PersistentDataType.BOOLEAN)) {
+            if (hasAny(playerData, plugin.getName(), "hasProp", PersistentDataType.BOOLEAN)) {
                 openRespawnMenu(p);
             }
         }

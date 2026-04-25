@@ -1,19 +1,18 @@
 package me.gabij.multiplebedspawn.utils;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
-import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.BedsDataType;
-import me.gabij.multiplebedspawn.models.PlayerBedsData;
+import me.gabij.multiplebedspawn.storage.BrokenBedNotification;
+import me.gabij.multiplebedspawn.storage.StoredBed;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static me.gabij.multiplebedspawn.utils.BedsUtils.checksIfBedExists;
 
@@ -34,51 +33,57 @@ public class PlayerUtils {
     public static void setPropPlayer(Player p) {
 
         PersistentDataContainer playerData = p.getPersistentDataContainer();
-        if (!playerData.has(new NamespacedKey(plugin, "hasProp"), PersistentDataType.BOOLEAN)) {
+        if (!KeyUtils.hasAny(playerData, plugin.getName(), "hasProp", PersistentDataType.BOOLEAN)) {
             p.setInvulnerable(true);
 
-            playerData.set(new NamespacedKey(plugin, "isInvisible"), PersistentDataType.BOOLEAN, p.isInvisible());
+            playerData.set(KeyUtils.key("isInvisible"), PersistentDataType.BOOLEAN, p.isInvisible());
             p.setInvisible(true);
 
-            playerData.set(new NamespacedKey(plugin, "canPickupItems"), PersistentDataType.BOOLEAN,
+            playerData.set(KeyUtils.key("canPickupItems"), PersistentDataType.BOOLEAN,
                     p.getCanPickupItems());
             p.setCanPickupItems(false);
 
             if (plugin.getConfig().getBoolean("spawn-on-sky")) {
-                playerData.set(new NamespacedKey(plugin, "allowFly"), PersistentDataType.BOOLEAN, p.getAllowFlight());
+                playerData.set(KeyUtils.key("allowFly"), PersistentDataType.BOOLEAN, p.getAllowFlight());
                 p.setAllowFlight(true);
                 p.setFlying(true);
             }
-            playerData.set(new NamespacedKey(plugin, "lastWalkspeed"), PersistentDataType.FLOAT, p.getWalkSpeed());
+            playerData.set(KeyUtils.key("lastWalkspeed"), PersistentDataType.FLOAT, p.getWalkSpeed());
             p.setWalkSpeed(0);
 
-            playerData.set(new NamespacedKey(plugin, "hasProp"), PersistentDataType.BOOLEAN, true);
+            playerData.set(KeyUtils.key("hasProp"), PersistentDataType.BOOLEAN, true);
         }
     }
 
     public static void undoPropPlayer(Player p) {
 
         PersistentDataContainer playerData = p.getPersistentDataContainer();
-        if (playerData.has(new NamespacedKey(plugin, "hasProp"), PersistentDataType.BOOLEAN)) {
-            playerData.remove(new NamespacedKey(plugin, "hasProp"));
+        if (KeyUtils.hasAny(playerData, plugin.getName(), "hasProp", PersistentDataType.BOOLEAN)) {
+            KeyUtils.removeAll(playerData, plugin.getName(), "hasProp");
 
             p.setInvulnerable(false);
-            p.setInvisible(playerData.get(new NamespacedKey(plugin, "isInvisible"), PersistentDataType.BOOLEAN));
+            Boolean wasInvisible = KeyUtils.getAny(playerData, plugin.getName(), "isInvisible", PersistentDataType.BOOLEAN);
+            p.setInvisible(Boolean.TRUE.equals(wasInvisible));
             p.setCanPickupItems(
-                    playerData.get(new NamespacedKey(plugin, "canPickupItems"), PersistentDataType.BOOLEAN));
+                    Boolean.TRUE.equals(KeyUtils.getAny(playerData, plugin.getName(), "canPickupItems",
+                            PersistentDataType.BOOLEAN)));
 
-            playerData.remove(new NamespacedKey(plugin, "isInvisible"));
-            playerData.remove(new NamespacedKey(plugin, "canPickupItems"));
+            KeyUtils.removeAll(playerData, plugin.getName(), "isInvisible");
+            KeyUtils.removeAll(playerData, plugin.getName(), "canPickupItems");
 
-            p.setWalkSpeed(playerData.get(new NamespacedKey(plugin, "lastWalkspeed"), PersistentDataType.FLOAT));
-            playerData.remove(new NamespacedKey(plugin, "lastWalkspeed"));
+            Float walkSpeed = KeyUtils.getAny(playerData, plugin.getName(), "lastWalkspeed", PersistentDataType.FLOAT);
+            if (walkSpeed != null) {
+                p.setWalkSpeed(walkSpeed);
+            }
+            KeyUtils.removeAll(playerData, plugin.getName(), "lastWalkspeed");
 
             if (plugin.getConfig().getBoolean("spawn-on-sky")) {
-                p.setAllowFlight(playerData.get(new NamespacedKey(plugin, "allowFly"), PersistentDataType.BOOLEAN));
+                Boolean allowFly = KeyUtils.getAny(playerData, plugin.getName(), "allowFly", PersistentDataType.BOOLEAN);
+                p.setAllowFlight(Boolean.TRUE.equals(allowFly));
                 p.setFlying(false);
 
-                playerData.remove(new NamespacedKey(plugin, "allowFly"));
-                playerData.remove(new NamespacedKey(plugin, "isFlying"));
+                KeyUtils.removeAll(playerData, plugin.getName(), "allowFly");
+                KeyUtils.removeAll(playerData, plugin.getName(), "isFlying");
             }
 
 
@@ -87,43 +92,37 @@ public class PlayerUtils {
 
     }
 
-    public static void teleportPlayer(Player p, PersistentDataContainer data, PersistentDataContainer playerData,
-            PlayerBedsData playerBedsData, String uuid) {
-        boolean isOkayToTP = true;
-
-        if (data.has(new NamespacedKey(plugin, "cooldown"), PersistentDataType.LONG)
-                && data.has(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING)) {
-
-            long cooldown = data.get(new NamespacedKey(plugin, "cooldown"), PersistentDataType.LONG);
-            if (cooldown > System.currentTimeMillis()) {
-                isOkayToTP = false;
-            }
-
+    public static void teleportPlayer(Player player, StoredBed bed) {
+        if (bed == null || bed.hasCooldown()) {
+            return;
         }
 
-        if (isOkayToTP) {
-            HashMap<String, BedData> beds = playerBedsData.getPlayerBedData();
-            undoPropPlayer(p);
-            String loc[] = beds.get(uuid).getBedSpawnCoords().split(":");
-            World world = Bukkit.getWorld(beds.get(uuid).getBedWorld());
-            Location locSpawn = new Location(world, Double.parseDouble(loc[0]), Double.parseDouble(loc[1]),
-                    Double.parseDouble(loc[2]));
-            if (!p.hasPermission("multiplebedspawn.skipcooldown")) {
-                beds.get(uuid).setBedCooldown(
+        Location spawnLocation = bed.getSpawnLocation();
+        if (spawnLocation == null) {
+            return;
+        }
+
+        undoPropPlayer(player);
+        if (!player.hasPermission("multiplebedspawn.skipcooldown")) {
+            try {
+                plugin.getBedStorage().setBedCooldown(
+                        bed.getBedId(),
                         System.currentTimeMillis() + (plugin.getConfig().getLong("bed-cooldown") * 1000));
+            } catch (SQLException exception) {
+                plugin.getLogger().warning("Could not update cooldown for bed " + bed.getBedId() + ": "
+                        + exception.getMessage());
             }
-            playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
-            playerData.remove(new NamespacedKey(plugin, "spawnLoc"));
-            p.teleport(locSpawn);
         }
+        KeyUtils.removeAll(player.getPersistentDataContainer(), plugin.getName(), "spawnLoc");
+        player.teleport(spawnLocation);
     }
 
     public static Location getPlayerRespawnLoc(Player p) {
         Location loc = p.getLocation();
         PersistentDataContainer playerData = p.getPersistentDataContainer();
-        if (playerData.has(new NamespacedKey(plugin, "spawnLoc"), PersistentDataType.STRING)) {
+        if (KeyUtils.hasAny(playerData, plugin.getName(), "spawnLoc", PersistentDataType.STRING)) {
             Location playerRespawnLocation = stringToLocation(
-                    playerData.get(new NamespacedKey(plugin, "spawnLoc"), PersistentDataType.STRING));
+                    KeyUtils.getAny(playerData, plugin.getName(), "spawnLoc", PersistentDataType.STRING));
             if (playerRespawnLocation != null) {
                 loc = playerRespawnLocation;
             }
@@ -132,40 +131,52 @@ public class PlayerUtils {
     }
 
     public static Integer getPlayerBedsCount(Player p) {
-        PersistentDataContainer playerData = p.getPersistentDataContainer();
-        PlayerBedsData playerBedsData = null;
-        AtomicInteger playerBedsCount = new AtomicInteger();
-        playerBedsCount.set(0);
-        if (playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
-            playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
-            if (playerBedsData != null && playerBedsData.getPlayerBedData() != null) {
-                HashMap<String, BedData> beds = playerBedsData.getPlayerBedData();
-                World world = getPlayerRespawnLoc(p).getWorld();
-                String worldName = world.getName();
-                if (!plugin.getConfig().getBoolean("link-worlds")) {
-                    HashMap<String, BedData> bedsT = (HashMap<String, BedData>) beds.clone();
-                    beds.forEach((uuid, bedData) -> {
-                        // clear lists so beds are only from the world that player will respawn
-                        if (!bedData.getBedWorld().equalsIgnoreCase(worldName)) {
-                            bedsT.remove(uuid);
-                        }
-                    });
-                    beds = bedsT;
-                }
-                playerBedsCount.set(beds.size());
-                beds.forEach((uuid, bedData) -> {
-                    String[] location = bedData.getBedCoords().split(":");
-                    String bedWorld = bedData.getBedWorld();
-                    Location bedLoc = new Location(Bukkit.getWorld(bedWorld), Double.parseDouble(location[0]),
-                            Double.parseDouble(location[1]), Double.parseDouble(location[2]));
-                    if (!checksIfBedExists(bedLoc, p, uuid)) {
-                        playerBedsCount.addAndGet(-1);
-                    }
-                });
+        return getPlayerBeds(p).size();
+    }
 
+    public static List<StoredBed> getPlayerBeds(Player player) {
+        try {
+            ensureLegacyPlayerData(player);
+            World world = getPlayerRespawnLoc(player).getWorld();
+            List<StoredBed> beds = new ArrayList<>(plugin.getBedStorage().getPlayerBeds(player.getUniqueId(), world,
+                    plugin.getConfig().getBoolean("link-worlds")));
+            boolean changed = false;
+            for (StoredBed bed : beds) {
+                if (!checksIfBedExists(bed.getBedLocation(), player, bed.getBedId())) {
+                    changed = true;
+                }
             }
+            if (changed) {
+                beds = new ArrayList<>(plugin.getBedStorage().getPlayerBeds(player.getUniqueId(), world,
+                        plugin.getConfig().getBoolean("link-worlds")));
+            }
+            return beds;
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Could not load beds for " + player.getName() + ": " + exception.getMessage());
+            return List.of();
         }
-        return playerBedsCount.get();
+    }
+
+    public static void ensureLegacyPlayerData(Player player) {
+        try {
+            plugin.getBedStorage().importLegacyPlayerData(player);
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Could not import legacy data for " + player.getName() + ": "
+                    + exception.getMessage());
+        }
+    }
+
+    public static void deliverBrokenBedNotifications(Player player) {
+        try {
+            List<BrokenBedNotification> notifications = plugin.getBedStorage()
+                    .consumeBrokenBedNotifications(player.getUniqueId());
+            for (BrokenBedNotification notification : notifications) {
+                player.sendMessage(BedsUtils.buildBrokenBedMessage(notification));
+            }
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Could not deliver broken bed notifications to " + player.getName() + ": "
+                    + exception.getMessage());
+        }
     }
 
 }

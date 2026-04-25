@@ -97,6 +97,7 @@ $RECYCLE.BIN/
 *.lnk
 
 target/
+.codex-test
 
 pom.xml.tag
 pom.xml.releaseBackup

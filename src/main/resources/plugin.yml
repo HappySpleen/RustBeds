@@ -3,9 +3,9 @@ version: '${project.version}'
 main: me.gabij.multiplebedspawn.MultipleBedSpawn
 api-version: 1.19
 load: STARTUP
-authors: [ Gabi ]
+authors: [ HappySpleen ]
 description: A simple plugin to allow players to choose which bed to respawn into.
-website: https://github.com/GabiJunkes
+website: https://github.com/HappySpleen
 permissions:
   multiplebedspawn.skipcooldown:
     description: Allows the player to skip the bed's respawn cooldown

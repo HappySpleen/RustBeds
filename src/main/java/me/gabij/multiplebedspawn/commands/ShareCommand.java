@@ -78,8 +78,13 @@ public class ShareCommand implements BasicCommand {
                         playerBedsData.shareBed(receiverBedsData, bedUUID);
                         receiverData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), receiverBedsData);
                         playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
+                        plugin.getBedOwnershipStore().syncPlayerBeds(ownerPlayer);
+                        plugin.getBedOwnershipStore().syncPlayerBeds(receiverPlayer);
 
-                        receiverPlayer.sendMessage(plugin.getMessages("bed-registered-successfully-message"));
+                        ownerPlayer.sendMessage(ChatColor.YELLOW + plugin.getMessages("bed-shared-successfully-message")
+                                .replace("{1}", receiverPlayer.getName()));
+                        receiverPlayer.sendMessage(ChatColor.YELLOW + plugin.getMessages("bed-shared-received-message")
+                                .replace("{1}", ownerPlayer.getName()));
                     } else {
                         ownerPlayer.sendMessage(ChatColor.RED + plugin.getMessages("bed-not-registered-message"));
                     }

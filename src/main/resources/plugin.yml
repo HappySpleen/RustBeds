@@ -13,5 +13,8 @@ permissions:
   multiplebedspawn.maxcount.*:
     description: Allows to set custom max number of beds (ignores the config)
     default: false
+  multiplebedspawn.admin:
+    description: Allows administrators to manage other players' saved beds
+    default: op
 
 

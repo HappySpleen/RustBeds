@@ -41,6 +41,7 @@ import static me.gabij.multiplebedspawn.utils.PlayerUtils.getPlayerRespawnLoc;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.setPropPlayer;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.undoPropPlayer;
 import static me.gabij.multiplebedspawn.utils.RunCommandUtils.runCommandOnSpawn;
+import static me.gabij.multiplebedspawn.utils.TeleportUtils.teleport;
 
 public class RespawnMenuHandler implements Listener {
     private static final int LIST_SIZE = 54;
@@ -632,7 +633,9 @@ public class RespawnMenuHandler implements Listener {
         String[] coords = bedData.getBedSpawnCoords().split(":");
         Location respawnLocation = new Location(world, Double.parseDouble(coords[0]), Double.parseDouble(coords[1]),
                 Double.parseDouble(coords[2]));
-        player.teleport(respawnLocation);
+        if (!teleport(player, respawnLocation)) {
+            Bukkit.getScheduler().runTask(plugin, () -> sendPlayerToDefaultRespawn(player, false));
+        }
     }
 
     private static void sendPlayerToDefaultRespawn(Player player, boolean timedOut) {
@@ -649,8 +652,9 @@ public class RespawnMenuHandler implements Listener {
 
         undoPropPlayer(player);
         Bukkit.getScheduler().runTask(plugin, () -> {
-            player.teleport(defaultRespawn);
-            runCommandOnSpawn(player);
+            if (teleport(player, defaultRespawn)) {
+                runCommandOnSpawn(player);
+            }
         });
     }
 
@@ -669,6 +673,8 @@ public class RespawnMenuHandler implements Listener {
         ownerBedsData.shareBed(receiverBedsData, bedUuid);
         receiverData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), receiverBedsData);
         owner.getPersistentDataContainer().set(new NamespacedKey(plugin, "beds"), new BedsDataType(), ownerBedsData);
+        plugin.getBedOwnershipStore().syncPlayerBeds(owner);
+        plugin.getBedOwnershipStore().syncPlayerBeds(receiver);
 
         owner.sendMessage(ChatColor.YELLOW + message("bed-shared-successfully-message",
                 "Bed shared successfully with {1}!").replace("{1}", receiver.getName()));

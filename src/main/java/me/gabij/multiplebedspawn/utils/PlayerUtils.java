@@ -114,7 +114,7 @@ public class PlayerUtils {
             }
             playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
             playerData.remove(new NamespacedKey(plugin, "spawnLoc"));
-            p.teleport(locSpawn);
+            TeleportUtils.teleport(p, locSpawn);
         }
     }
 

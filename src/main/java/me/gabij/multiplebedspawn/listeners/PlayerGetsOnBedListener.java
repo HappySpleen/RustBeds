@@ -96,6 +96,7 @@ public class PlayerGetsOnBedListener implements Listener {
 
                 if (registerBed) {
                     playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
+                    plugin.getBedOwnershipStore().syncPlayerBeds(player);
                     player.sendMessage(ChatColor.translateAlternateColorCodes('&',
                             plugin.getMessages("bed-registered-successfully-message")));
                 }

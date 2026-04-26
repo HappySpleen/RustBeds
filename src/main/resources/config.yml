@@ -15,3 +15,4 @@ exclusive-bed: false
 bed-sharing: false
 command-on-spawn: ""
 run-command-as-player: true
+teleport-provider: "vanilla"

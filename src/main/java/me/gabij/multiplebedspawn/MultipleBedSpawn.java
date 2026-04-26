@@ -2,9 +2,12 @@ package me.gabij.multiplebedspawn;
 
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import me.gabij.multiplebedspawn.commands.AdminBedsCommand;
 import me.gabij.multiplebedspawn.commands.RespawnMenuCommand;
 import me.gabij.multiplebedspawn.listeners.*;
+import me.gabij.multiplebedspawn.utils.BedOwnershipStore;
 
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -15,6 +18,7 @@ import java.util.List;
 public final class MultipleBedSpawn extends JavaPlugin {
 
     private Configuration messages;
+    private BedOwnershipStore bedOwnershipStore;
 
     private static MultipleBedSpawn instance;
 
@@ -25,17 +29,25 @@ public final class MultipleBedSpawn extends JavaPlugin {
         getConfig().options().copyDefaults(true);
         saveConfig();
         createLanguageConfig();
+        bedOwnershipStore = new BedOwnershipStore(this);
 
         getServer().getPluginManager().registerEvents(new PlayerRespawnListener(this), this);
         getServer().getPluginManager().registerEvents(new RespawnMenuHandler(this), this);
         getServer().getPluginManager().registerEvents(new BedMenuInputListener(this), this);
+        getServer().getPluginManager().registerEvents(new AdminBedsMenuHandler(this), this);
+        getServer().getPluginManager().registerEvents(new AdminBedMenuInputListener(this), this);
+        getServer().getPluginManager().registerEvents(new BedDestroyedListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerGetsOnBedListener(this), this);
+        getServer().getPluginManager().registerEvents(new PlayerSetSpawnListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
+        Bukkit.getOnlinePlayers().forEach(bedOwnershipStore::syncPlayerBeds);
 
         this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
             commands.register(RespawnMenuCommand.LABEL, RespawnMenuCommand.DESCRIPTION, List.of("respawnbed"),
                     new RespawnMenuCommand());
+            commands.register(AdminBedsCommand.LABEL, AdminBedsCommand.DESCRIPTION, List.of("bedadmin", "bedsadmin"),
+                    new AdminBedsCommand());
         });
 
         this.getLogger().info("Commands registered with Paper lifecycle manager");
@@ -43,6 +55,10 @@ public final class MultipleBedSpawn extends JavaPlugin {
 
     public static MultipleBedSpawn getInstance() {
         return instance;
+    }
+
+    public BedOwnershipStore getBedOwnershipStore() {
+        return bedOwnershipStore;
     }
 
     // get message of selected language

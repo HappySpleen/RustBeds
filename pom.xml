@@ -4,12 +4,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>me.gabij</groupId>
-    <artifactId>MultipleBedSpawn</artifactId>
+    <groupId>me.happy</groupId>
+    <artifactId>RustBeds</artifactId>
     <version>1.12.1</version>
     <packaging>jar</packaging>
 
-    <name>MultipleBedSpawn</name>
+    <name>RustBeds</name>
 
     <description>A simple plugin to allow players to choose which bed to respawn into.</description>
     <properties>

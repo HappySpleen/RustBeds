@@ -1,0 +1,27 @@
+package me.happy.rustbeds.models;
+
+import org.bukkit.persistence.PersistentDataAdapterContext;
+import org.bukkit.persistence.PersistentDataType;
+
+public class BedsDataType implements PersistentDataType<byte[], PlayerBedsData> {
+
+    @Override
+    public Class<byte[]> getPrimitiveType() {
+        return byte[].class;
+    }
+
+    @Override
+    public Class<PlayerBedsData> getComplexType() {
+        return PlayerBedsData.class;
+    }
+
+    @Override
+    public byte[] toPrimitive(PlayerBedsData complex, PersistentDataAdapterContext context) {
+        return LegacySerializationUtils.serialize(complex);
+    }
+
+    @Override
+    public PlayerBedsData fromPrimitive(byte[] primitive, PersistentDataAdapterContext context) {
+        return LegacySerializationUtils.deserialize(primitive, PlayerBedsData.class);
+    }
+}

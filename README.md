@@ -1,4 +1,4 @@
-# MultipleBedSpawn
+# RustBeds
 A simple Minecraft plugin to allow players to choose which bed to respawn into.
 
 [Spigot page](https://www.spigotmc.org/resources/multiple-bed-spawn.107057)
@@ -56,9 +56,9 @@ Leave empty to work in every world.
 
 # Permission
 
-<strong>multiplebedspawn.skipcooldown</strong> - Allow players to skip bed cool-down.
+<strong>rustbeds.skipcooldown</strong> - Allow players to skip bed cool-down.
 
-<strong>multiplebedspawn.maxcount.{num}</strong> - Allow players to have custom maximum bed amount. Change '{num}' with the number you want to be the max number of beds a player with this permission can have (ignores config.yml setting).
+<strong>rustbeds.maxcount.{num}</strong> - Allow players to have custom maximum bed amount. Change '{num}' with the number you want to be the max number of beds a player with this permission can have (ignores config.yml setting).
 
 
 # Help needed

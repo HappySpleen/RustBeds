@@ -1,9 +1,9 @@
 name: MultipleBedSpawn
 version: '${project.version}'
 main: me.gabij.multiplebedspawn.MultipleBedSpawn
-api-version: 1.19
+api-version: '1.21.11'
 load: STARTUP
-authors: [ HappySpleen ]
+authors: [HappySpleen]
 description: A simple plugin to allow players to choose which bed to respawn into.
 website: https://github.com/HappySpleen
 permissions:

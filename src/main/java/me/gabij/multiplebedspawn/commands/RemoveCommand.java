@@ -1,31 +1,22 @@
 package me.gabij.multiplebedspawn.commands;
 
-import me.gabij.multiplebedspawn.MultipleBedSpawn;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.defaults.BukkitCommand;
+import io.papermc.paper.command.brigadier.BasicCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.entity.Player;
 
 import static me.gabij.multiplebedspawn.listeners.RemoveMenuHandler.openRemoveMenu;
 
-import java.util.ArrayList;
+public class RemoveCommand implements BasicCommand {
+    public static final String LABEL = "removebed";
+    public static final String DESCRIPTION = "Opens a menu to remove saved beds";
 
-public class RemoveCommand extends BukkitCommand {
-    static MultipleBedSpawn plugin;
-
-    public RemoveCommand(MultipleBedSpawn plugin, String name) {
-        super(name);
-        RemoveCommand.plugin = plugin;
-        this.description = "Opens a menu to remove saved beds";
-        this.usageMessage = "/removebed";
-        this.setAliases(new ArrayList<String>());
+    public RemoveCommand() {
     }
 
     @Override
-    public boolean execute(CommandSender sender, String alias, String[] args) {
-        if (sender instanceof Player) {
-            Player p = (Player) sender;
+    public void execute(CommandSourceStack commandSourceStack, String[] args) {
+        if (commandSourceStack.getSender() instanceof Player p) {
             openRemoveMenu(p);
         }
-        return true;
     }
 }

@@ -1,50 +1,46 @@
 package me.gabij.multiplebedspawn.commands;
 
+import io.papermc.paper.command.brigadier.BasicCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.models.BedData;
 import me.gabij.multiplebedspawn.models.BedsDataType;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
-
-import static me.gabij.multiplebedspawn.utils.BedsUtils.checkIfIsBed;
-
-import java.util.ArrayList;
-
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-public class NameCommand extends BukkitCommand {
-    static MultipleBedSpawn plugin;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.checkIfIsBed;
 
-    public NameCommand(MultipleBedSpawn plugin, String name) {
-        super(name);
-        NameCommand.plugin = plugin;
-        this.description = "Changes the name of the bed you are looking at";
-        this.usageMessage = "/renamebed <name of the bed>";
-        this.setAliases(new ArrayList<String>());
+public class NameCommand implements BasicCommand {
+    public static final String LABEL = "renamebed";
+    public static final String DESCRIPTION = "Changes the name of the bed you are looking at";
+
+    private final MultipleBedSpawn plugin;
+
+    public NameCommand(MultipleBedSpawn plugin) {
+        this.plugin = plugin;
     }
 
     @Override
-    public boolean execute(CommandSender sender, String alias, String[] args) {
-        if (sender instanceof Player) {
-            String name = "";
-            for (String arg : args) {
-                name += arg + " ";
+    public void execute(CommandSourceStack commandSourceStack, String[] args) {
+        if (commandSourceStack.getSender() instanceof Player p) {
+            String name = String.join(" ", args).trim();
+            if (name.isEmpty()) {
+                p.sendMessage(ChatColor.RED + "Usage: /renamebed <name of the bed>");
+                return;
             }
-            Player p = (Player) sender;
+
             Block bed = checkIfIsBed(p.getTargetBlockExact(4));
             if (bed != null) {
                 BlockState blockState = bed.getState();
                 String bedUUID = null;
-                if (blockState instanceof TileState tileState) { // sets a randomUUID to the bed if the bed doesnt have
-                                                                 // it or get the bed uuid
+                if (blockState instanceof TileState tileState) {
                     PersistentDataContainer container = tileState.getPersistentDataContainer();
 
                     if (container.has(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING)) {
@@ -52,12 +48,11 @@ public class NameCommand extends BukkitCommand {
                     }
 
                     tileState.update();
-
                 }
 
                 if (bedUUID == null) {
                     p.sendMessage(ChatColor.RED + plugin.getMessages("bed-not-registered-message"));
-                    return false;
+                    return;
                 }
 
                 PlayerBedsData playerBedsData = null;
@@ -74,16 +69,11 @@ public class NameCommand extends BukkitCommand {
                                 plugin.getMessages("bed-name-registered-successfully-message")));
                     } else {
                         p.sendMessage(ChatColor.RED + plugin.getMessages("bed-not-registered-message"));
-                        return false;
                     }
                 }
             } else {
                 p.sendMessage(ChatColor.RED + plugin.getMessages("bed-not-found-message"));
-                return false;
             }
-
         }
-        return true;
     }
-
 }

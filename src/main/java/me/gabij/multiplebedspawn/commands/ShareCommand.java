@@ -1,56 +1,56 @@
 package me.gabij.multiplebedspawn.commands;
 
-import static me.gabij.multiplebedspawn.utils.BedsUtils.checkIfIsBed;
-
-import java.util.ArrayList;
-
+import io.papermc.paper.command.brigadier.BasicCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import me.gabij.multiplebedspawn.MultipleBedSpawn;
+import me.gabij.multiplebedspawn.models.BedsDataType;
+import me.gabij.multiplebedspawn.models.PlayerBedsData;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import me.gabij.multiplebedspawn.MultipleBedSpawn;
-import me.gabij.multiplebedspawn.models.BedsDataType;
-import me.gabij.multiplebedspawn.models.PlayerBedsData;
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
-public class ShareCommand extends BukkitCommand {
-    static MultipleBedSpawn plugin;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.checkIfIsBed;
 
-    public ShareCommand(MultipleBedSpawn plugin, String name) {
-        super(name);
-        ShareCommand.plugin = plugin;
-        this.description = "Gives bed to another player";
-        this.usageMessage = "/sharebed <player>";
-        this.setAliases(new ArrayList<String>());
+public class ShareCommand implements BasicCommand {
+    public static final String LABEL = "sharebed";
+    public static final String DESCRIPTION = "Gives the bed you are looking at to another player";
+
+    private final MultipleBedSpawn plugin;
+
+    public ShareCommand(MultipleBedSpawn plugin) {
+        this.plugin = plugin;
     }
 
     @Override
-    public boolean execute(CommandSender sender, String alias, String[] args) {
+    public void execute(CommandSourceStack commandSourceStack, String[] args) {
         if (args.length != 1) {
-            return false;
+            commandSourceStack.getSender().sendMessage(ChatColor.RED + "Usage: /sharebed <player>");
+            return;
         }
-        if (sender instanceof Player) {
-            Player ownerPlayer = (Player) sender;
+        if (commandSourceStack.getSender() instanceof Player ownerPlayer) {
             Player receiverPlayer = Bukkit.getPlayer(args[0]);
             if (receiverPlayer == null) {
                 ownerPlayer.sendMessage(ChatColor.RED + plugin.getMessages("player-not-found"));
-                return false;
+                return;
             }
             if (receiverPlayer == ownerPlayer) {
-                return false;
+                return;
             }
             Block bed = checkIfIsBed(ownerPlayer.getTargetBlockExact(4));
             if (bed != null) {
                 BlockState blockState = bed.getState();
                 String bedUUID = null;
-                if (blockState instanceof TileState tileState) { // gets the bed uuid
+                if (blockState instanceof TileState tileState) {
                     PersistentDataContainer container = tileState.getPersistentDataContainer();
                     if (container.has(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING)) {
                         bedUUID = container.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
@@ -59,7 +59,7 @@ public class ShareCommand extends BukkitCommand {
 
                 if (bedUUID == null) {
                     ownerPlayer.sendMessage(ChatColor.RED + plugin.getMessages("bed-not-registered-message"));
-                    return false;
+                    return;
                 }
 
                 PlayerBedsData playerBedsData = null;
@@ -82,16 +82,26 @@ public class ShareCommand extends BukkitCommand {
                         receiverPlayer.sendMessage(plugin.getMessages("bed-registered-successfully-message"));
                     } else {
                         ownerPlayer.sendMessage(ChatColor.RED + plugin.getMessages("bed-not-registered-message"));
-                        return false;
                     }
                 }
             } else {
                 plugin.getLogger().info("Not found");
                 ownerPlayer.sendMessage(ChatColor.RED + plugin.getMessages("bed-not-found-message"));
-                return false;
             }
 
         }
-        return true;
+    }
+
+    @Override
+    public Collection<String> suggest(CommandSourceStack commandSourceStack, String[] args) {
+        if (args.length > 1) {
+            return List.of();
+        }
+
+        String input = args.length == 0 ? "" : args[0].toLowerCase();
+        return Bukkit.getOnlinePlayers().stream()
+                .map(Player::getName)
+                .filter(name -> name.toLowerCase().startsWith(input))
+                .collect(Collectors.toList());
     }
 }

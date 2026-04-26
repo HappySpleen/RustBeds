@@ -1,17 +1,19 @@
 package me.gabij.multiplebedspawn;
 
+import io.papermc.paper.command.brigadier.Commands;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import me.gabij.multiplebedspawn.commands.NameCommand;
 import me.gabij.multiplebedspawn.commands.RemoveCommand;
 import me.gabij.multiplebedspawn.commands.RespawnMenuCommand;
 import me.gabij.multiplebedspawn.commands.ShareCommand;
 import me.gabij.multiplebedspawn.listeners.*;
 
-import org.bukkit.command.CommandMap;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
+import java.util.List;
 
 public final class MultipleBedSpawn extends JavaPlugin {
 
@@ -33,21 +35,21 @@ public final class MultipleBedSpawn extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerGetsOnBedListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
 
-        try {
-            CommandMap commandMap = me.gabij.multiplebedspawn.utils.CommandMapUtil.getCommandMap();
-            commandMap.register(this.getName(), new RespawnMenuCommand(this, "respawnbed"));
-            commandMap.register(this.getName(), new NameCommand(this, "renamebed"));
+        this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            Commands commands = event.registrar();
+            commands.register(RespawnMenuCommand.LABEL, RespawnMenuCommand.DESCRIPTION, List.of(),
+                    new RespawnMenuCommand(this));
+            commands.register(NameCommand.LABEL, NameCommand.DESCRIPTION, List.of(), new NameCommand(this));
+
             if (this.getConfig().getBoolean("remove-beds-gui")) {
-                commandMap.register(this.getName(), new RemoveCommand(this, "removebed"));
+                commands.register(RemoveCommand.LABEL, RemoveCommand.DESCRIPTION, List.of(), new RemoveCommand());
             }
             if (this.getConfig().getBoolean("bed-sharing")) {
-                commandMap.register(this.getName(), new ShareCommand(this, "sharebed"));
+                commands.register(ShareCommand.LABEL, ShareCommand.DESCRIPTION, List.of(), new ShareCommand(this));
             }
-            this.getLogger().info("Commands added successfully");
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            this.getLogger().warning("Could not access commandMap. Commands will not work");
-            this.getLogger().warning(e.getMessage());
-        }
+        });
+
+        this.getLogger().info("Commands registered with Paper lifecycle manager");
     }
 
     public static MultipleBedSpawn getInstance() {

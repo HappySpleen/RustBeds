@@ -39,6 +39,10 @@ public class PlayerGetsOnBedListener implements Listener {
         boolean passLists = (!denylist.contains(world)) && (allowlist.contains(world) || allowlist.isEmpty());
 
         if (passLists) {
+            if (e.enterAction().problem() != null || !e.enterAction().canSetSpawn().success()) {
+                return;
+            }
+
             Block bed = e.getBed();
             PersistentDataContainer playerData = player.getPersistentDataContainer();
 

@@ -2,10 +2,7 @@ package me.gabij.multiplebedspawn;
 
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
-import me.gabij.multiplebedspawn.commands.NameCommand;
-import me.gabij.multiplebedspawn.commands.RemoveCommand;
 import me.gabij.multiplebedspawn.commands.RespawnMenuCommand;
-import me.gabij.multiplebedspawn.commands.ShareCommand;
 import me.gabij.multiplebedspawn.listeners.*;
 
 import org.bukkit.configuration.Configuration;
@@ -31,22 +28,14 @@ public final class MultipleBedSpawn extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new PlayerRespawnListener(this), this);
         getServer().getPluginManager().registerEvents(new RespawnMenuHandler(this), this);
-        getServer().getPluginManager().registerEvents(new RemoveMenuHandler(this), this);
+        getServer().getPluginManager().registerEvents(new BedMenuInputListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerGetsOnBedListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
 
         this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
-            commands.register(RespawnMenuCommand.LABEL, RespawnMenuCommand.DESCRIPTION, List.of(),
-                    new RespawnMenuCommand(this));
-            commands.register(NameCommand.LABEL, NameCommand.DESCRIPTION, List.of(), new NameCommand(this));
-
-            if (this.getConfig().getBoolean("remove-beds-gui")) {
-                commands.register(RemoveCommand.LABEL, RemoveCommand.DESCRIPTION, List.of(), new RemoveCommand());
-            }
-            if (this.getConfig().getBoolean("bed-sharing")) {
-                commands.register(ShareCommand.LABEL, ShareCommand.DESCRIPTION, List.of(), new ShareCommand(this));
-            }
+            commands.register(RespawnMenuCommand.LABEL, RespawnMenuCommand.DESCRIPTION, List.of("respawnbed"),
+                    new RespawnMenuCommand());
         });
 
         this.getLogger().info("Commands registered with Paper lifecycle manager");

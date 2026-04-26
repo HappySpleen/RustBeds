@@ -34,6 +34,9 @@ public class BedsUtils {
                 playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
 
                 World world = Bukkit.getWorld(bedData.getBedWorld());
+                if (world == null) {
+                    return;
+                }
                 String loc[] = bedData.getBedCoords().split(":");
                 Location locBed = new Location(world, Double.parseDouble(loc[0]), Double.parseDouble(loc[1]),
                         Double.parseDouble(loc[2]));
@@ -56,7 +59,19 @@ public class BedsUtils {
     }
 
     public static boolean checksIfBedExists(Location locBed, Player p, String bedUUID) {
+        if (!isRegisteredBedPresent(locBed, bedUUID)) {
+            removePlayerBed(bedUUID, p);
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean isRegisteredBedPresent(Location locBed, String bedUUID) {
         World world = locBed.getWorld();
+        if (world == null) {
+            return false;
+        }
+
         Block bed = world.getBlockAt(locBed);
         boolean isBed = false;
         if (bed.getBlockData() instanceof Bed bedPart) {
@@ -68,27 +83,17 @@ public class BedsUtils {
         }
 
         if (!isBed) {
-
-            removePlayerBed(bedUUID, p);
             return false;
-
-        } else {
-
-            BlockState blockState = bed.getState();
-            if (blockState instanceof TileState tileState) {
-                PersistentDataContainer container = tileState.getPersistentDataContainer();
-                String uuid = container.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
-
-                if (container == null || uuid == null || !uuid.equalsIgnoreCase(bedUUID)) {
-                    removePlayerBed(bedUUID, p);
-                    return false;
-                }
-
-            }
-
         }
 
-        return true;
+        BlockState blockState = bed.getState();
+        if (blockState instanceof TileState tileState) {
+            PersistentDataContainer container = tileState.getPersistentDataContainer();
+            String uuid = container.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
+            return uuid != null && uuid.equalsIgnoreCase(bedUUID);
+        }
+
+        return false;
     }
 
     public static Block checkIfIsBed(Block block) {

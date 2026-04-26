@@ -9,6 +9,8 @@ remove-beds-gui: false
 disable-bed-world-desc: true
 disable-bed-coords-desc: false
 spawn-on-sky: true
+respawn-menu-open-delay-ticks: 2
+respawn-menu-timeout-seconds: 15
 exclusive-bed: false
 bed-sharing: false
 command-on-spawn: ""

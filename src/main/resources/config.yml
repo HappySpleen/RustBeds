@@ -1,16 +1,69 @@
+# Language file to load from src/main/resources/languages.
+# Falls back to enUS if the selected file is missing.
+# Current bundled options include: enUS, deDE, esES, frFR, ptBR, ruRU, svSE, zhCH.
 lang: "enUS"
+
+# Maximum number of saved beds per player.
+# Hard-capped to 53 by the plugin.
+# Players with multiplebedspawn.maxcount.<num> can override this per permission.
 max-beds: 5
+
+# Cooldown in seconds before the same saved bed can be used again.
+# Set to 0 to disable the cooldown.
+# Ignored for players with multiplebedspawn.skipcooldown.
 bed-cooldown: 30
+
+# World filters for where the plugin is active.
+# Leave both empty to allow the plugin in every world it supports.
+# If both are used, a world must be in allowlist and not in denylist.
 denylist: []
 allowlist: []
+
+# If true, players can view and use saved beds from every saved world.
+# If false, they only see beds from the world they are currently respawning in.
 link-worlds: true
+
+# UI-only option: hides the world name from saved-bed lore in menus.
 disable-bed-world-desc: true
+
+# UI-only option: hides bed coordinates from saved-bed lore in menus.
 disable-bed-coords-desc: false
+
+# If true, the respawn flow places the player about 300 blocks above their normal
+# respawn point and lets them fly while choosing a bed.
+# Disable this if you want the menu to open at ground level instead.
 spawn-on-sky: true
+
+# Delay before opening the respawn menu after death.
+# 20 ticks = 1 second.
+# Useful if another plugin or client timing conflicts with opening instantly.
+# Negative values behave like 0.
 respawn-menu-open-delay-ticks: 2
+
+# How long the respawn menu stays open before the plugin auto-respawns the player.
+# On timeout, it tries the player's primary bed first, then falls back to normal spawn.
+# 0 does not disable the timeout; the code clamps this to at least 1 tick.
 respawn-menu-timeout-seconds: 15
+
+# If true, a player cannot register a bed that is already owned by someone else.
+# Useful for survival servers where each physical bed should belong to one player.
 exclusive-bed: false
+
+# If true, the manage menu adds a share action so players can share a saved bed
+# with another online player.
 bed-sharing: false
+
+# Command to run after the plugin sends the player to their default respawn path.
+# Leave empty to disable.
+# Use the raw command name without a leading slash.
 command-on-spawn: ""
+
+# Only used when command-on-spawn is not empty.
+# true = run the command as the player, false = run it as console.
 run-command-as-player: true
+
+# Teleport provider used by plugin teleports.
+# "vanilla" uses Bukkit teleport.
+# "multiverse" uses the Multiverse-Core mv tp command and falls back to vanilla
+# if Multiverse-Core is missing or the command fails.
 teleport-provider: "vanilla"

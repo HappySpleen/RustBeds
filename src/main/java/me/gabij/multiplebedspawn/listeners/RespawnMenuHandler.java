@@ -41,6 +41,7 @@ import static me.gabij.multiplebedspawn.utils.BedsUtils.isRegisteredRespawnPoint
 import static me.gabij.multiplebedspawn.utils.BedsUtils.removePlayerBed;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.getPlayerRespawnLoc;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.savePlayerBedsData;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.setPropPlayer;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.undoPropPlayer;
 import static me.gabij.multiplebedspawn.utils.RunCommandUtils.runCommandOnSpawn;
@@ -666,7 +667,7 @@ public class RespawnMenuHandler implements Listener {
             return false;
         }
 
-        player.getPersistentDataContainer().set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
+        savePlayerBedsData(player, playerBedsData);
         return true;
     }
 
@@ -689,7 +690,7 @@ public class RespawnMenuHandler implements Listener {
         if (bedData.usesCooldown() && !player.hasPermission("multiplebedspawn.skipcooldown")) {
             bedData.setBedCooldown(System.currentTimeMillis() + (plugin.getConfig().getLong("bed-cooldown") * 1000L));
         }
-        playerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
+        savePlayerBedsData(player, playerBedsData);
         playerData.remove(PluginKeys.spawnLoc());
 
         undoPropPlayer(player);
@@ -752,16 +753,14 @@ public class RespawnMenuHandler implements Listener {
             return false;
         }
 
-        PersistentDataContainer receiverData = receiver.getPersistentDataContainer();
-        PlayerBedsData receiverBedsData = receiverData.has(PluginKeys.beds(), PluginKeys.bedsDataType())
-                ? receiverData.get(PluginKeys.beds(), PluginKeys.bedsDataType())
-                : new PlayerBedsData();
+        PlayerBedsData receiverBedsData = getPlayerBedsData(receiver);
+        if (receiverBedsData == null) {
+            receiverBedsData = new PlayerBedsData();
+        }
 
         ownerBedsData.shareBed(receiverBedsData, bedUuid);
-        receiverData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), receiverBedsData);
-        owner.getPersistentDataContainer().set(PluginKeys.beds(), PluginKeys.bedsDataType(), ownerBedsData);
-        plugin.getBedOwnershipStore().syncPlayerBeds(owner);
-        plugin.getBedOwnershipStore().syncPlayerBeds(receiver);
+        savePlayerBedsData(receiver, receiverBedsData);
+        savePlayerBedsData(owner, ownerBedsData);
 
         owner.sendMessage(ChatColor.YELLOW + plugin.message("bed-shared-successfully-message",
                 "Bed shared successfully with {1}!").replace("{1}", receiver.getName()));

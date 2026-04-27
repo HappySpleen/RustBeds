@@ -2,14 +2,12 @@ package me.gabij.multiplebedspawn.listeners;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
-import me.gabij.multiplebedspawn.utils.PluginKeys;
 import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerBedEnterEvent;
-import org.bukkit.persistence.PersistentDataContainer;
 
 import java.util.UUID;
 
@@ -17,6 +15,7 @@ import static me.gabij.multiplebedspawn.utils.BedsUtils.getMaxNumberOfBeds;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.getOrCreateRespawnPointUuid;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.getPlayerBedsCount;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.savePlayerBedsData;
 
 public class PlayerGetsOnBedListener implements Listener {
 
@@ -38,7 +37,6 @@ public class PlayerGetsOnBedListener implements Listener {
         }
 
         Block bed = e.getBed();
-        PersistentDataContainer playerData = player.getPersistentDataContainer();
 
         int maxBeds = getMaxNumberOfBeds(player);
         PlayerBedsData playerBedsData = null;
@@ -59,7 +57,7 @@ public class PlayerGetsOnBedListener implements Listener {
                     && playerBedsData.hasBed(randomUUID.toString());
             if (!alreadyRegisteredByPlayer
                     && plugin.getConfig().getBoolean("exclusive-bed")
-                    && plugin.getBedOwnershipStore()
+                    && plugin.getPlayerBedStore()
                             .hasOwnerOtherThan(randomUUID.toString(), player.getUniqueId())) {
                 player.sendMessage(ChatColor.RED + plugin.message("bed-already-has-owner",
                         "This bed already belongs to another player."));
@@ -80,8 +78,7 @@ public class PlayerGetsOnBedListener implements Listener {
             }
 
             if (registerBed) {
-                playerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
-                plugin.getBedOwnershipStore().syncPlayerBeds(player);
+                savePlayerBedsData(player, playerBedsData);
                 player.sendMessage(plugin.message("bed-registered-successfully-message",
                         "Bed registered successfully!"));
             }

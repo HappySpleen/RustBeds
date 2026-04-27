@@ -34,6 +34,18 @@ public class BedData implements Serializable {
         this.bedWorld = bed.getWorld().getName();
     }
 
+    public BedData(RespawnPointType respawnPointType, String bedName, Material bedMaterial, String bedCoords,
+                   String bedSpawnCoords, String bedWorld, long bedCooldown, boolean primary) {
+        this.respawnPointType = respawnPointType;
+        this.bedName = bedName;
+        this.bedMaterial = bedMaterial;
+        this.bedCoords = bedCoords;
+        this.bedSpawnCoords = bedSpawnCoords;
+        this.bedWorld = bedWorld;
+        this.bedCooldown = bedCooldown;
+        this.primary = primary;
+    }
+
     public String getBedName() {
         return bedName;
     }

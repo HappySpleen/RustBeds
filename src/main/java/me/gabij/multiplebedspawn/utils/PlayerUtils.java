@@ -96,17 +96,16 @@ public class PlayerUtils {
     }
 
     public static PlayerBedsData loadPlayerBedsData(Player p) {
-        PersistentDataContainer playerData = p.getPersistentDataContainer();
-        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            return null;
+        plugin.getPlayerBedStore().importLegacyBeds(p);
+        PlayerBedsData playerBedsData = plugin.getPlayerBedStore().loadPlayerBeds(p.getUniqueId());
+        if (playerBedsData != null && playerBedsData.normalizePrimarySelection()) {
+            plugin.getPlayerBedStore().savePlayerBeds(p.getUniqueId(), playerBedsData);
         }
-
-        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
-        if (playerBedsData != null && playerBedsData.normalizePrimaryBeds()) {
-            playerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
-        }
-
         return playerBedsData;
+    }
+
+    public static void savePlayerBedsData(Player p, PlayerBedsData playerBedsData) {
+        plugin.getPlayerBedStore().savePlayerBeds(p.getUniqueId(), playerBedsData);
     }
 
     public static Integer getPlayerBedsCount(Player p) {

@@ -1,8 +1,6 @@
 package me.gabij.multiplebedspawn.listeners;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
-import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.utils.BedOwnershipStore.PendingBedUpdates;
 import me.gabij.multiplebedspawn.utils.PluginKeys;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -38,35 +36,9 @@ public class PlayerJoinListener implements Listener {
         }
         undoPropPlayer(p);
 
-        PendingBedUpdates pendingUpdates = plugin.getBedOwnershipStore().consumePendingUpdates(p.getUniqueId());
-        for (String bedUuid : pendingUpdates.bedUuids()) {
-            BedData removedBed = removePlayerBed(bedUuid, p, false);
-            if (removedBed != null) {
-                p.sendMessage(buildDestroyedMessage(removedBed));
-            }
-        }
-        for (String message : pendingUpdates.messages()) {
+        plugin.getPlayerBedStore().importLegacyBeds(p);
+        for (String message : plugin.getPlayerBedStore().consumePendingMessages(p.getUniqueId())) {
             p.sendMessage(message);
         }
-        plugin.getBedOwnershipStore().syncPlayerBeds(p);
-    }
-
-    private String buildDestroyedMessage(BedData bedData) {
-        if (bedData.hasCustomName()) {
-            return ChatColor.RED + plugin.message(
-                    bedData.isRespawnAnchor() ? "anchor-destroyed-message" : "bed-destroyed-message",
-                    bedData.isRespawnAnchor()
-                            ? "Your saved respawn anchor {1} was destroyed and removed."
-                            : "Your saved bed {1} was destroyed and removed.")
-                    .replace("{1}", bedData.getBedName());
-        }
-
-        return ChatColor.RED + plugin.message(
-                bedData.isRespawnAnchor() ? "anchor-destroyed-message-location" : "bed-destroyed-message-location",
-                bedData.isRespawnAnchor()
-                        ? "Your saved respawn anchor at {1} in {2} was destroyed and removed."
-                        : "Your saved bed at {1} in {2} was destroyed and removed.")
-                .replace("{1}", bedData.formatCoords())
-                .replace("{2}", bedData.getBedWorld());
     }
 }

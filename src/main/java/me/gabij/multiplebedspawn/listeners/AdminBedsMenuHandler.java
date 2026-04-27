@@ -34,6 +34,7 @@ import static me.gabij.multiplebedspawn.utils.BedsUtils.getRespawnAnchorCharges;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.getRespawnAnchorMaxCharges;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.isRegisteredRespawnPointPresent;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.removePlayerBed;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
 
 public class AdminBedsMenuHandler implements Listener {
     private static final int LIST_SIZE = 54;
@@ -625,11 +626,7 @@ public class AdminBedsMenuHandler implements Listener {
     }
 
     private static PlayerBedsData getPlayerBedsData(Player owner) {
-        PersistentDataContainer ownerData = owner.getPersistentDataContainer();
-        if (!ownerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            return null;
-        }
-        return ownerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
+        return loadPlayerBedsData(owner);
     }
 
     private static int getSavedBedCount(Player owner) {

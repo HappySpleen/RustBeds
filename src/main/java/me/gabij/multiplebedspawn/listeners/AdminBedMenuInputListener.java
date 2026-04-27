@@ -4,7 +4,6 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.models.BedData;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
-import me.gabij.multiplebedspawn.utils.PluginKeys;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -12,11 +11,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.persistence.PersistentDataContainer;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.savePlayerBedsData;
 
 public class AdminBedMenuInputListener implements Listener {
     private static final Map<UUID, RenamePrompt> RENAME_PROMPTS = new HashMap<>();
@@ -69,15 +70,7 @@ public class AdminBedMenuInputListener implements Listener {
             return;
         }
 
-        PersistentDataContainer ownerData = owner.getPersistentDataContainer();
-        if (!ownerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
-                    "That player has no registered beds."));
-            AdminBedsMenuHandler.openOwnerMenu(admin, 0);
-            return;
-        }
-
-        PlayerBedsData playerBedsData = ownerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
+        PlayerBedsData playerBedsData = loadPlayerBedsData(owner);
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
                     "That player has no registered beds."));
@@ -94,7 +87,7 @@ public class AdminBedMenuInputListener implements Listener {
         }
 
         bedData.setBedName(input);
-        ownerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
+        savePlayerBedsData(owner, playerBedsData);
         admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-rename-success", "Renamed {1}'s bed to {2}.")
                 .replace("{1}", owner.getName())
                 .replace("{2}", input));

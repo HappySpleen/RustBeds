@@ -27,12 +27,6 @@ public class BedsUtils {
     }
 
     public static BedData removePlayerBed(String bedUUID, Player p, boolean clearBlockUuid) {
-        PersistentDataContainer playerData = p.getPersistentDataContainer();
-        // checks to see if player has beds
-        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            return null;
-        }
-
         PlayerBedsData playerBedsData = PlayerUtils.loadPlayerBedsData(p);
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             return null;
@@ -45,8 +39,7 @@ public class BedsUtils {
 
         BedData bedData = beds.get(bedUUID);
         playerBedsData.removeBed(bedUUID);
-        playerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
-        plugin.getBedOwnershipStore().syncPlayerBeds(p);
+        PlayerUtils.savePlayerBedsData(p, playerBedsData);
 
         if (clearBlockUuid && !hasAnyRemainingOwner(bedUUID, p)) {
             clearRespawnPointUuid(bedData);
@@ -304,33 +297,11 @@ public class BedsUtils {
     }
 
     private static boolean hasAnyRemainingOwner(String bedUUID, Player removedPlayer) {
-        if (plugin.getBedOwnershipStore().hasAnyKnownOwner(bedUUID)) {
-            return true;
+        if (removedPlayer == null) {
+            return plugin.getPlayerBedStore().hasAnyKnownOwner(bedUUID);
         }
 
-        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-            if (onlinePlayer.getUniqueId().equals(removedPlayer.getUniqueId())) {
-                continue;
-            }
-
-            if (playerHasBed(onlinePlayer, bedUUID)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static boolean playerHasBed(Player player, String bedUUID) {
-        PersistentDataContainer playerData = player.getPersistentDataContainer();
-        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            return false;
-        }
-
-        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
-        return playerBedsData != null
-                && playerBedsData.getPlayerBedData() != null
-                && playerBedsData.hasBed(bedUUID);
+        return plugin.getPlayerBedStore().hasOwnerOtherThan(bedUUID, removedPlayer.getUniqueId());
     }
 
     private static void clearRespawnPointUuid(BedData bedData) {

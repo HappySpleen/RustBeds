@@ -2,14 +2,10 @@ package me.gabij.multiplebedspawn.listeners;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.PlayerBedsData;
-import me.gabij.multiplebedspawn.utils.PluginKeys;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.TileState;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -17,8 +13,6 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -74,13 +68,7 @@ public class BedDestroyedListener implements Listener {
     }
 
     private void notifyOwners(Block bed, String bedUuid) {
-        Set<UUID> owners = new LinkedHashSet<>(plugin.getBedOwnershipStore().getOwners(bedUuid));
-        Bukkit.getOnlinePlayers().forEach(player -> {
-            if (playerHasBed(player, bedUuid)) {
-                owners.add(player.getUniqueId());
-            }
-        });
-
+        Set<UUID> owners = new LinkedHashSet<>(plugin.getPlayerBedStore().getOwners(bedUuid));
         if (owners.isEmpty()) {
             return;
         }
@@ -88,7 +76,11 @@ public class BedDestroyedListener implements Listener {
         for (UUID ownerId : owners) {
             Player owner = Bukkit.getPlayer(ownerId);
             if (owner == null) {
-                plugin.getBedOwnershipStore().queueDestroyedBed(ownerId, bedUuid);
+                BedData removedBed = plugin.getPlayerBedStore().removePlayerBed(ownerId, bedUuid);
+                if (removedBed != null) {
+                    plugin.getPlayerBedStore().queuePendingMessage(ownerId,
+                            buildDestroyedMessage(removedBed, bed.getLocation()));
+                }
                 continue;
             }
 
@@ -98,22 +90,9 @@ public class BedDestroyedListener implements Listener {
             }
         }
 
-        plugin.getBedOwnershipStore().clearOwners(bedUuid);
         if (bed.getType() == org.bukkit.Material.RESPAWN_ANCHOR) {
             plugin.getRespawnAnchorStore().clearAnchor(bed.getLocation());
         }
-    }
-
-    private boolean playerHasBed(Player player, String bedUuid) {
-        PersistentDataContainer playerData = player.getPersistentDataContainer();
-        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            return false;
-        }
-
-        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
-        return playerBedsData != null
-                && playerBedsData.getPlayerBedData() != null
-                && playerBedsData.hasBed(bedUuid);
     }
 
     private String getBedUuid(Block bed) {

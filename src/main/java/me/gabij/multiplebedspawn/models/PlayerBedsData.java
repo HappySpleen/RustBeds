@@ -98,6 +98,15 @@ public class PlayerBedsData implements Serializable {
         return changed;
     }
 
+    public boolean normalizePrimarySelection() {
+        boolean changed = normalizePrimaryBeds();
+        if (!hasPrimaryBed()) {
+            assignPrimaryIfNeeded();
+            changed = hasPrimaryBed() || changed;
+        }
+        return changed;
+    }
+
     public HashMap<String, BedData> getPlayerBedData() {
         return bedData;
     }

@@ -4,7 +4,6 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.models.BedData;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
-import me.gabij.multiplebedspawn.utils.PluginKeys;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -12,11 +11,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.persistence.PersistentDataContainer;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.savePlayerBedsData;
 
 public class BedMenuInputListener implements Listener {
     private static final Map<UUID, RenamePrompt> RENAME_PROMPTS = new HashMap<>();
@@ -61,15 +62,7 @@ public class BedMenuInputListener implements Listener {
             return;
         }
 
-        PersistentDataContainer playerData = player.getPersistentDataContainer();
-        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            player.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
-                    "You have not registered this bed!"));
-            RespawnMenuHandler.openManageMenu(player, prompt.returnPage());
-            return;
-        }
-
-        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
+        PlayerBedsData playerBedsData = loadPlayerBedsData(player);
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             player.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
                     "You have not registered this bed!"));
@@ -86,7 +79,7 @@ public class BedMenuInputListener implements Listener {
         }
 
         bedData.setBedName(input);
-        playerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
+        savePlayerBedsData(player, playerBedsData);
         player.sendMessage(plugin.message("bed-name-registered-successfully-message",
                 "Bed name registered successfully!"));
         RespawnMenuHandler.openManageMenu(player, prompt.returnPage());

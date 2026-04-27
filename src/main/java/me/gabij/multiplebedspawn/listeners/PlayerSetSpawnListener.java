@@ -16,6 +16,7 @@ import static me.gabij.multiplebedspawn.utils.BedsUtils.getMaxNumberOfBeds;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.getOrCreateRespawnPointUuid;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.getPlayerBedsCount;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.savePlayerBedsData;
 
 public class PlayerSetSpawnListener implements Listener {
 
@@ -74,7 +75,7 @@ public class PlayerSetSpawnListener implements Listener {
 
         if (!alreadyRegisteredByPlayer
                 && plugin.getConfig().getBoolean("exclusive-bed")
-                && plugin.getBedOwnershipStore().hasOwnerOtherThan(savedUuid, player.getUniqueId())) {
+                && plugin.getPlayerBedStore().hasOwnerOtherThan(savedUuid, player.getUniqueId())) {
             player.sendMessage(ChatColor.RED + plugin.message("anchor-already-has-owner",
                     "This respawn anchor already belongs to another player."));
             return;
@@ -89,9 +90,7 @@ public class PlayerSetSpawnListener implements Listener {
         }
 
         playerBedsData.setNewRespawnPoint(player, anchor, savedUuid, me.gabij.multiplebedspawn.models.BedData.RespawnPointType.ANCHOR);
-        player.getPersistentDataContainer().set(me.gabij.multiplebedspawn.utils.PluginKeys.beds(),
-                me.gabij.multiplebedspawn.utils.PluginKeys.bedsDataType(), playerBedsData);
-        plugin.getBedOwnershipStore().syncPlayerBeds(player);
+        savePlayerBedsData(player, playerBedsData);
         player.sendMessage(ChatColor.YELLOW + plugin.message("anchor-registered-successfully-message",
                 "Respawn anchor registered successfully!"));
     }

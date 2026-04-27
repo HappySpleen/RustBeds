@@ -542,7 +542,7 @@ public class RespawnMenuHandler implements Listener {
             case COOLDOWN -> ChatColor.GOLD + entry.displayName();
             case DEPLETED, DISABLED, MISSING -> ChatColor.RED + entry.displayName();
         });
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        hideMenuTooltipDetails(meta);
         meta.setLore(buildBedLore(entry, mode == SessionMode.RESPAWN));
 
         PersistentDataContainer data = meta.getPersistentDataContainer();
@@ -558,7 +558,7 @@ public class RespawnMenuHandler implements Listener {
         ItemStack item = new ItemStack(material, getDisplayAmount(entry));
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(ChatColor.YELLOW + entry.displayName());
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        hideMenuTooltipDetails(meta);
 
         List<String> lore = new ArrayList<>();
         boolean hasMetadata = appendBedMetadataLore(lore, entry);
@@ -614,6 +614,7 @@ public class RespawnMenuHandler implements Listener {
         ItemStack item = new ItemStack(material, 1);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName((enabled ? ChatColor.YELLOW : ChatColor.DARK_GRAY) + name);
+        hideMenuTooltipDetails(meta);
         meta.setLore(List.of((enabled ? ChatColor.GRAY : ChatColor.RED) + loreLine));
         item.setItemMeta(meta);
         return item;
@@ -624,6 +625,7 @@ public class RespawnMenuHandler implements Listener {
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(target);
         meta.setDisplayName(ChatColor.GREEN + target.getName());
+        hideMenuTooltipDetails(meta);
         meta.setLore(List.of(ChatColor.GRAY + plugin.message("bed-share-click",
                 "Click to give this bed to the player.")));
         meta.getPersistentDataContainer().set(PluginKeys.sharePlayer(), PersistentDataType.STRING, target.getName());
@@ -635,6 +637,7 @@ public class RespawnMenuHandler implements Listener {
         ItemStack item = new ItemStack(material, 1);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
+        hideMenuTooltipDetails(meta);
         if (!lore.isEmpty()) {
             meta.setLore(lore);
         }
@@ -1049,8 +1052,13 @@ public class RespawnMenuHandler implements Listener {
         ItemStack item = new ItemStack(material, 1);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
+        hideMenuTooltipDetails(meta);
         item.setItemMeta(meta);
         return item;
+    }
+
+    private static void hideMenuTooltipDetails(ItemMeta meta) {
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
     }
 
     private static String stripColors(String value) {

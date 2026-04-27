@@ -5,12 +5,14 @@ import me.gabij.multiplebedspawn.models.BedData;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static me.gabij.multiplebedspawn.utils.BedsUtils.checksIfBedExists;
@@ -96,16 +98,48 @@ public class PlayerUtils {
     }
 
     public static PlayerBedsData loadPlayerBedsData(Player p) {
-        plugin.getPlayerBedStore().importLegacyBeds(p);
-        PlayerBedsData playerBedsData = plugin.getPlayerBedStore().loadPlayerBeds(p.getUniqueId());
+        return loadPlayerBedsData((OfflinePlayer) p);
+    }
+
+    public static PlayerBedsData loadPlayerBedsData(OfflinePlayer player) {
+        if (player == null) {
+            return null;
+        }
+
+        plugin.getPlayerBedStore().importLegacyBeds(player);
+        return loadPlayerBedsData(player.getUniqueId());
+    }
+
+    public static PlayerBedsData loadPlayerBedsData(UUID playerId) {
+        if (playerId == null) {
+            return null;
+        }
+
+        PlayerBedsData playerBedsData = plugin.getPlayerBedStore().loadPlayerBeds(playerId);
         if (playerBedsData != null && playerBedsData.normalizePrimarySelection()) {
-            plugin.getPlayerBedStore().savePlayerBeds(p.getUniqueId(), playerBedsData);
+            plugin.getPlayerBedStore().savePlayerBeds(playerId, playerBedsData);
         }
         return playerBedsData;
     }
 
     public static void savePlayerBedsData(Player p, PlayerBedsData playerBedsData) {
-        plugin.getPlayerBedStore().savePlayerBeds(p.getUniqueId(), playerBedsData);
+        savePlayerBedsData(p.getUniqueId(), playerBedsData);
+    }
+
+    public static void savePlayerBedsData(OfflinePlayer player, PlayerBedsData playerBedsData) {
+        if (player == null) {
+            return;
+        }
+
+        savePlayerBedsData(player.getUniqueId(), playerBedsData);
+    }
+
+    public static void savePlayerBedsData(UUID playerId, PlayerBedsData playerBedsData) {
+        if (playerId == null) {
+            return;
+        }
+
+        plugin.getPlayerBedStore().savePlayerBeds(playerId, playerBedsData);
     }
 
     public static Integer getPlayerBedsCount(Player p) {

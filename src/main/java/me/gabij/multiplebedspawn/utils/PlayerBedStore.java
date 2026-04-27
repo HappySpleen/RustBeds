@@ -243,6 +243,26 @@ public class PlayerBedStore implements AutoCloseable {
         }
     }
 
+    public synchronized List<UUID> getPlayersWithBeds() {
+        ensureConnection();
+
+        List<UUID> playerIds = new ArrayList<>();
+        String sql = "SELECT DISTINCT player_uuid FROM player_beds";
+        try (PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                UUID playerId = parseUuid(resultSet.getString("player_uuid"));
+                if (playerId != null) {
+                    playerIds.add(playerId);
+                }
+            }
+        } catch (SQLException exception) {
+            logSqlWarning("Could not load players with saved beds", exception);
+        }
+
+        return playerIds;
+    }
+
     public synchronized void queuePendingMessage(UUID playerId, String message) {
         if (message == null || message.isBlank()) {
             return;

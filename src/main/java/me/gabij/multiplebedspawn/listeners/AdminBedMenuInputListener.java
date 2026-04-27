@@ -7,6 +7,7 @@ import me.gabij.multiplebedspawn.models.PlayerBedsData;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -62,14 +63,7 @@ public class AdminBedMenuInputListener implements Listener {
             return;
         }
 
-        Player owner = Bukkit.getPlayer(prompt.ownerId());
-        if (owner == null) {
-            admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-owner-offline",
-                    "That player is no longer online."));
-            AdminBedsMenuHandler.openOwnerMenu(admin, 0);
-            return;
-        }
-
+        OfflinePlayer owner = Bukkit.getOfflinePlayer(prompt.ownerId());
         PlayerBedsData playerBedsData = loadPlayerBedsData(owner);
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
@@ -89,7 +83,7 @@ public class AdminBedMenuInputListener implements Listener {
         bedData.setBedName(input);
         savePlayerBedsData(owner, playerBedsData);
         admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-rename-success", "Renamed {1}'s bed to {2}.")
-                .replace("{1}", owner.getName())
+                .replace("{1}", owner.getName() == null ? owner.getUniqueId().toString() : owner.getName())
                 .replace("{2}", input));
         AdminBedsMenuHandler.openActionMenu(admin, prompt.ownerId(), prompt.returnPage(), prompt.bedUuid());
     }

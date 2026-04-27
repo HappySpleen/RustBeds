@@ -6,6 +6,7 @@ import me.gabij.multiplebedspawn.models.PlayerBedsData;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -18,16 +19,37 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
+import java.util.UUID;
 
 public class BedsUtils {
     static MultipleBedSpawn plugin = MultipleBedSpawn.getInstance();
 
     public static BedData removePlayerBed(String bedUUID, Player p) {
-        return removePlayerBed(bedUUID, p, true);
+        return p == null ? null : removePlayerBed(bedUUID, p.getUniqueId(), true);
     }
 
     public static BedData removePlayerBed(String bedUUID, Player p, boolean clearBlockUuid) {
-        PlayerBedsData playerBedsData = PlayerUtils.loadPlayerBedsData(p);
+        return p == null ? null : removePlayerBed(bedUUID, p.getUniqueId(), clearBlockUuid);
+    }
+
+    public static BedData removePlayerBed(String bedUUID, OfflinePlayer player) {
+        return player == null ? null : removePlayerBed(bedUUID, player.getUniqueId(), true);
+    }
+
+    public static BedData removePlayerBed(String bedUUID, OfflinePlayer player, boolean clearBlockUuid) {
+        return player == null ? null : removePlayerBed(bedUUID, player.getUniqueId(), clearBlockUuid);
+    }
+
+    public static BedData removePlayerBed(String bedUUID, UUID playerId) {
+        return removePlayerBed(bedUUID, playerId, true);
+    }
+
+    public static BedData removePlayerBed(String bedUUID, UUID playerId, boolean clearBlockUuid) {
+        if (playerId == null) {
+            return null;
+        }
+
+        PlayerBedsData playerBedsData = PlayerUtils.loadPlayerBedsData(playerId);
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             return null;
         }
@@ -39,9 +61,9 @@ public class BedsUtils {
 
         BedData bedData = beds.get(bedUUID);
         playerBedsData.removeBed(bedUUID);
-        PlayerUtils.savePlayerBedsData(p, playerBedsData);
+        PlayerUtils.savePlayerBedsData(playerId, playerBedsData);
 
-        if (clearBlockUuid && !hasAnyRemainingOwner(bedUUID, p)) {
+        if (clearBlockUuid && !hasAnyRemainingOwner(bedUUID, playerId)) {
             clearRespawnPointUuid(bedData);
         }
 
@@ -296,12 +318,12 @@ public class BedsUtils {
         return maxBeds;
     }
 
-    private static boolean hasAnyRemainingOwner(String bedUUID, Player removedPlayer) {
-        if (removedPlayer == null) {
+    private static boolean hasAnyRemainingOwner(String bedUUID, UUID removedPlayerId) {
+        if (removedPlayerId == null) {
             return plugin.getPlayerBedStore().hasAnyKnownOwner(bedUUID);
         }
 
-        return plugin.getPlayerBedStore().hasOwnerOtherThan(bedUUID, removedPlayer.getUniqueId());
+        return plugin.getPlayerBedStore().hasOwnerOtherThan(bedUUID, removedPlayerId);
     }
 
     private static void clearRespawnPointUuid(BedData bedData) {

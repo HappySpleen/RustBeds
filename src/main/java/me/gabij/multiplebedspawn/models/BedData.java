@@ -1,7 +1,10 @@
 package me.gabij.multiplebedspawn.models;
 
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
@@ -52,8 +55,30 @@ public class BedData implements Serializable {
         return bedWorld;
     }
 
-    public void setBedWorld(String bedWorld) {
-        this.bedWorld = bedWorld;
+    public boolean hasCustomName() {
+        return bedName != null && !bedName.isBlank();
+    }
+
+    public Location getBedLocation() {
+        return locationFromString(bedCoords);
+    }
+
+    public Location getSpawnLocation() {
+        return locationFromString(bedSpawnCoords);
+    }
+
+    public String getSortKey() {
+        if (!hasCustomName()) {
+            return bedWorld + ":" + bedCoords;
+        }
+
+        String stripped = ChatColor.stripColor(bedName);
+        return stripped == null ? bedName : stripped;
+    }
+
+    public String formatCoords() {
+        String[] coords = bedCoords.split(":");
+        return "X: " + formatCoord(coords[0]) + " Y: " + formatCoord(coords[1]) + " Z: " + formatCoord(coords[2]);
     }
 
     public long getBedCooldown() {
@@ -62,6 +87,21 @@ public class BedData implements Serializable {
 
     public void setBedCooldown(long cooldown) {
         this.bedCooldown = cooldown;
+    }
+
+    private Location locationFromString(String locationString) {
+        World world = Bukkit.getWorld(bedWorld);
+        if (world == null) {
+            return null;
+        }
+
+        String[] coords = locationString.split(":");
+        return new Location(world, Double.parseDouble(coords[0]), Double.parseDouble(coords[1]),
+                Double.parseDouble(coords[2]));
+    }
+
+    private String formatCoord(String coordinate) {
+        return Integer.toString((int) Math.floor(Double.parseDouble(coordinate)));
     }
 
 }

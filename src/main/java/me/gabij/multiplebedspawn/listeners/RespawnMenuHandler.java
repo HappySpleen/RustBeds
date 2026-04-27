@@ -3,8 +3,8 @@ package me.gabij.multiplebedspawn.listeners;
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.gui.RespawnMenuHolder;
 import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.BedsDataType;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
+import me.gabij.multiplebedspawn.utils.PluginKeys;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -12,7 +12,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -104,7 +103,7 @@ public class RespawnMenuHandler implements Listener {
             }
 
             setPropPlayer(player);
-            player.sendActionBar(Component.text(stripColors(message("respawn-menu-prompt", "Choose a respawn bed")))
+            player.sendActionBar(Component.text(stripColors(plugin.message("respawn-menu-prompt", "Choose a respawn bed")))
                     .color(NamedTextColor.GOLD)
                     .decorate(TextDecoration.BOLD));
             showListMenu(player, 0);
@@ -190,8 +189,8 @@ public class RespawnMenuHandler implements Listener {
 
                 ItemMeta meta = clickedItem.getItemMeta();
                 PersistentDataContainer data = meta.getPersistentDataContainer();
-                String uuid = data.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
-                String status = data.get(new NamespacedKey(plugin, "menu-status"), PersistentDataType.STRING);
+                String uuid = data.get(PluginKeys.uuid(), PersistentDataType.STRING);
+                String status = data.get(PluginKeys.menuStatus(), PersistentDataType.STRING);
                 if (uuid == null || status == null || !BedStatus.AVAILABLE.name().equalsIgnoreCase(status)) {
                     return;
                 }
@@ -203,7 +202,8 @@ public class RespawnMenuHandler implements Listener {
                 }
 
                 BedData bedData = playerBedsData.getPlayerBedData().get(uuid);
-                if (bedData == null || !isRegisteredBedPresent(getBedLocation(bedData), uuid)) {
+                Location bedLocation = bedData == null ? null : bedData.getBedLocation();
+                if (bedLocation == null || !isRegisteredBedPresent(bedLocation, uuid)) {
                     showListMenu(player, holder.getPage());
                     return;
                 }
@@ -227,7 +227,7 @@ public class RespawnMenuHandler implements Listener {
                 }
 
                 String uuid = clickedItem.getItemMeta().getPersistentDataContainer()
-                        .get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
+                        .get(PluginKeys.uuid(), PersistentDataType.STRING);
                 if (uuid == null) {
                     return;
                 }
@@ -259,7 +259,7 @@ public class RespawnMenuHandler implements Listener {
 
                 cancelSession(player.getUniqueId());
                 BedMenuInputListener.beginRenamePrompt(player, bedUuid, holder.getPage());
-                player.sendMessage(ChatColor.YELLOW + message("rename-prompt",
+                player.sendMessage(ChatColor.YELLOW + plugin.message("rename-prompt",
                         "Type the new bed name in chat. Type 'cancel' to abort."));
                 player.closeInventory();
             }
@@ -273,7 +273,7 @@ public class RespawnMenuHandler implements Listener {
             case ACTION_REMOVE_SLOT -> {
                 removePlayerBed(bedUuid, player);
                 player.sendMessage(ChatColor.YELLOW
-                        + message("bed-removed-successfully-message", "Bed removed successfully!"));
+                        + plugin.message("bed-removed-successfully-message", "Bed removed successfully!"));
                 openManageMenu(player, holder.getPage());
             }
             default -> {
@@ -298,14 +298,14 @@ public class RespawnMenuHandler implements Listener {
                 }
 
                 String targetName = clickedItem.getItemMeta().getPersistentDataContainer()
-                        .get(new NamespacedKey(plugin, "share-player"), PersistentDataType.STRING);
+                        .get(PluginKeys.sharePlayer(), PersistentDataType.STRING);
                 if (targetName == null) {
                     return;
                 }
 
                 Player receiver = Bukkit.getPlayerExact(targetName);
                 if (receiver == null || receiver.getUniqueId().equals(player.getUniqueId())) {
-                    player.sendMessage(ChatColor.RED + message("player-not-found", "Player not found!"));
+                    player.sendMessage(ChatColor.RED + plugin.message("player-not-found", "Player not found!"));
                     showShareMenu(player, bedUuid, holder.getPage());
                     return;
                 }
@@ -341,8 +341,8 @@ public class RespawnMenuHandler implements Listener {
 
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(), viewType, page, null);
         String title = session.getMode() == SessionMode.RESPAWN
-                ? message("menu-title", "Beds")
-                : message("manage-menu-title", "Manage beds");
+                ? plugin.message("menu-title", "Beds")
+                : plugin.message("manage-menu-title", "Manage beds");
         Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE, title);
         holder.setInventory(inventory);
 
@@ -371,7 +371,7 @@ public class RespawnMenuHandler implements Listener {
 
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(), RespawnMenuHolder.ViewType.ACTIONS,
                 listPage, bedUuid);
-        Inventory inventory = Bukkit.createInventory(holder, ACTION_SIZE, message("bed-actions-title", "Manage bed"));
+        Inventory inventory = Bukkit.createInventory(holder, ACTION_SIZE, plugin.message("bed-actions-title", "Manage bed"));
         holder.setInventory(inventory);
 
         renderActionMenu(inventory, entry);
@@ -400,7 +400,7 @@ public class RespawnMenuHandler implements Listener {
 
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(), RespawnMenuHolder.ViewType.SHARE_LIST,
                 page, bedUuid);
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE, message("bed-share-title", "Share bed"));
+        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE, plugin.message("bed-share-title", "Share bed"));
         holder.setInventory(inventory);
 
         renderShareMenu(inventory, candidates, page, totalPages);
@@ -420,39 +420,39 @@ public class RespawnMenuHandler implements Listener {
 
         if (page > 0) {
             inventory.setItem(PREVIOUS_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-previous", "Previous page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-previous", "Previous page"), List.of()));
         }
 
         if (mode == SessionMode.RESPAWN) {
             inventory.setItem(INFO_SLOT, createControlItem(Material.COMPASS,
-                    ChatColor.GOLD + message("respawn-menu-page", "Page {1}/{2}")
+                    ChatColor.GOLD + plugin.message("respawn-menu-page", "Page {1}/{2}")
                             .replace("{1}", Integer.toString(page + 1))
                             .replace("{2}", Integer.toString(totalPages)),
-                    List.of(ChatColor.GRAY + message("respawn-menu-prompt", "Choose a respawn bed"))));
+                    List.of(ChatColor.GRAY + plugin.message("respawn-menu-prompt", "Choose a respawn bed"))));
             inventory.setItem(PRIMARY_ACTION_SLOT, createControlItem(Material.GRASS_BLOCK,
-                    ChatColor.YELLOW + message("respawn-menu-spawn", "Respawn at spawn"),
-                    List.of(ChatColor.GRAY + message("respawn-menu-spawn-lore",
+                    ChatColor.YELLOW + plugin.message("respawn-menu-spawn", "Respawn at spawn"),
+                    List.of(ChatColor.GRAY + plugin.message("respawn-menu-spawn-lore",
                             "Leave this menu and use the normal respawn point."))));
             inventory.setItem(CLOSE_SLOT, createControlItem(Material.BARRIER,
-                    ChatColor.RED + message("respawn-menu-close", "Close menu"),
-                    List.of(ChatColor.GRAY + message("respawn-menu-close-lore",
+                    ChatColor.RED + plugin.message("respawn-menu-close", "Close menu"),
+                    List.of(ChatColor.GRAY + plugin.message("respawn-menu-close-lore",
                             "Close now and default to your normal respawn point."))));
         } else {
             inventory.setItem(INFO_SLOT, createControlItem(Material.BOOK,
-                    ChatColor.GOLD + message("manage-menu-page", "Beds {1}/{2}")
+                    ChatColor.GOLD + plugin.message("manage-menu-page", "Beds {1}/{2}")
                             .replace("{1}", Integer.toString(page + 1))
                             .replace("{2}", Integer.toString(totalPages)),
-                    List.of(ChatColor.GRAY + message("manage-menu-prompt",
+                    List.of(ChatColor.GRAY + plugin.message("manage-menu-prompt",
                             "Click a bed to rename, remove, or share it."))));
             inventory.setItem(PRIMARY_ACTION_SLOT, createControlItem(Material.BARRIER,
-                    ChatColor.RED + message("manage-menu-close", "Close menu"),
-                    List.of(ChatColor.GRAY + message("manage-menu-close-lore",
+                    ChatColor.RED + plugin.message("manage-menu-close", "Close menu"),
+                    List.of(ChatColor.GRAY + plugin.message("manage-menu-close-lore",
                             "Close the beds management menu."))));
         }
 
         if (page < totalPages - 1) {
             inventory.setItem(NEXT_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-next", "Next page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-next", "Next page"), List.of()));
         }
     }
 
@@ -463,16 +463,16 @@ public class RespawnMenuHandler implements Listener {
         inventory.setItem(ACTION_RENAME_SLOT, createActionItem(
                 entry.status() != BedStatus.MISSING ? Material.NAME_TAG : Material.GRAY_DYE,
                 entry.status() != BedStatus.MISSING,
-                message("bed-action-rename", "Rename bed"),
-                message("bed-action-rename-lore", "Rename this saved bed.")));
+                plugin.message("bed-action-rename", "Rename bed"),
+                plugin.message("bed-action-rename-lore", "Rename this saved bed.")));
         if (plugin.getConfig().getBoolean("bed-sharing")) {
             inventory.setItem(ACTION_SHARE_SLOT, createShareActionItem(entry));
         }
         inventory.setItem(ACTION_BACK_SLOT, createControlItem(Material.ARROW,
-                ChatColor.YELLOW + message("bed-action-back", "Back to beds"), List.of()));
+                ChatColor.YELLOW + plugin.message("bed-action-back", "Back to beds"), List.of()));
         inventory.setItem(ACTION_REMOVE_SLOT, createActionItem(Material.BARRIER, true,
-                message("bed-action-remove", "Remove bed"),
-                message("bed-action-remove-lore", "Remove this bed from your saved list.")));
+                plugin.message("bed-action-remove", "Remove bed"),
+                plugin.message("bed-action-remove-lore", "Remove this bed from your saved list.")));
     }
 
     private static void renderShareMenu(Inventory inventory, List<Player> candidates, int page, int totalPages) {
@@ -487,26 +487,26 @@ public class RespawnMenuHandler implements Listener {
 
         if (page > 0) {
             inventory.setItem(PREVIOUS_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-previous", "Previous page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-previous", "Previous page"), List.of()));
         }
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + message("bed-share-prompt", "Choose a player to receive this bed."));
+        lore.add(ChatColor.GRAY + plugin.message("bed-share-prompt", "Choose a player to receive this bed."));
         if (candidates.isEmpty()) {
-            lore.add(ChatColor.RED + message("bed-share-no-players", "No other online players are available."));
+            lore.add(ChatColor.RED + plugin.message("bed-share-no-players", "No other online players are available."));
         }
         inventory.setItem(INFO_SLOT, createControlItem(Material.PLAYER_HEAD,
-                ChatColor.GOLD + message("bed-share-page", "Players {1}/{2}")
+                ChatColor.GOLD + plugin.message("bed-share-page", "Players {1}/{2}")
                         .replace("{1}", Integer.toString(page + 1))
                         .replace("{2}", Integer.toString(totalPages)),
                 lore));
         inventory.setItem(PRIMARY_ACTION_SLOT, createControlItem(Material.ARROW,
-                ChatColor.YELLOW + message("bed-action-back", "Back to beds"),
-                List.of(ChatColor.GRAY + message("bed-share-back-lore", "Return to the selected bed."))));
+                ChatColor.YELLOW + plugin.message("bed-action-back", "Back to beds"),
+                List.of(ChatColor.GRAY + plugin.message("bed-share-back-lore", "Return to the selected bed."))));
 
         if (page < totalPages - 1) {
             inventory.setItem(NEXT_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-next", "Next page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-next", "Next page"), List.of()));
         }
     }
 
@@ -524,8 +524,8 @@ public class RespawnMenuHandler implements Listener {
         meta.setLore(buildBedLore(entry, mode == SessionMode.RESPAWN));
 
         PersistentDataContainer data = meta.getPersistentDataContainer();
-        data.set(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING, entry.uuid());
-        data.set(new NamespacedKey(plugin, "menu-status"), PersistentDataType.STRING, entry.status().name());
+        data.set(PluginKeys.uuid(), PersistentDataType.STRING, entry.uuid());
+        data.set(PluginKeys.menuStatus(), PersistentDataType.STRING, entry.status().name());
 
         item.setItemMeta(meta);
         return item;
@@ -545,18 +545,18 @@ public class RespawnMenuHandler implements Listener {
             hasMetadata = true;
         }
         if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-            lore.add(ChatColor.GRAY + formatCoords(entry.bedData()));
+            lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
             hasMetadata = true;
         }
         if (hasMetadata) {
             lore.add("");
         }
         switch (entry.status()) {
-            case AVAILABLE -> lore.add(ChatColor.GREEN + message("bed-action-ready", "Ready to manage."));
-            case COOLDOWN -> lore.add(ChatColor.GOLD + message("respawn-menu-bed-cooldown", "Available in {1}s.")
+            case AVAILABLE -> lore.add(ChatColor.GREEN + plugin.message("bed-action-ready", "Ready to manage."));
+            case COOLDOWN -> lore.add(ChatColor.GOLD + plugin.message("respawn-menu-bed-cooldown", "Available in {1}s.")
                     .replace("{1}", Long.toString(entry.remainingCooldownSeconds())));
             case MISSING -> lore.add(ChatColor.RED
-                    + message("respawn-menu-bed-missing", "This bed no longer exists."));
+                    + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
         }
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -566,13 +566,13 @@ public class RespawnMenuHandler implements Listener {
     private static ItemStack createShareActionItem(BedMenuEntry entry) {
         if (entry.status() == BedStatus.MISSING) {
             return createActionItem(Material.GRAY_DYE, false,
-                    message("bed-action-share", "Share bed"),
-                    message("bed-action-unavailable-lore", "This action is unavailable for missing beds."));
+                    plugin.message("bed-action-share", "Share bed"),
+                    plugin.message("bed-action-unavailable-lore", "This action is unavailable for missing beds."));
         }
 
         return createActionItem(Material.PLAYER_HEAD, true,
-                message("bed-action-share", "Share bed"),
-                message("bed-action-share-lore", "Give this saved bed to another online player."));
+                plugin.message("bed-action-share", "Share bed"),
+                plugin.message("bed-action-share-lore", "Give this saved bed to another online player."));
     }
 
     private static ItemStack createActionItem(Material material, boolean enabled, String name, String loreLine) {
@@ -589,9 +589,9 @@ public class RespawnMenuHandler implements Listener {
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(target);
         meta.setDisplayName(ChatColor.GREEN + target.getName());
-        meta.setLore(List.of(ChatColor.GRAY + message("bed-share-click", "Click to give this bed to the player.")));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "share-player"), PersistentDataType.STRING,
-                target.getName());
+        meta.setLore(List.of(ChatColor.GRAY + plugin.message("bed-share-click",
+                "Click to give this bed to the player.")));
+        meta.getPersistentDataContainer().set(PluginKeys.sharePlayer(), PersistentDataType.STRING, target.getName());
         item.setItemMeta(meta);
         return item;
     }
@@ -614,8 +614,8 @@ public class RespawnMenuHandler implements Listener {
             return;
         }
 
-        World world = Bukkit.getWorld(bedData.getBedWorld());
-        if (world == null) {
+        Location respawnLocation = bedData.getSpawnLocation();
+        if (respawnLocation == null || respawnLocation.getWorld() == null) {
             sendPlayerToDefaultRespawn(player, false);
             return;
         }
@@ -626,14 +626,10 @@ public class RespawnMenuHandler implements Listener {
         if (!player.hasPermission("multiplebedspawn.skipcooldown")) {
             bedData.setBedCooldown(System.currentTimeMillis() + (plugin.getConfig().getLong("bed-cooldown") * 1000L));
         }
-        playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
-        playerData.remove(new NamespacedKey(plugin, "spawnLoc"));
+        playerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
+        playerData.remove(PluginKeys.spawnLoc());
 
         undoPropPlayer(player);
-
-        String[] coords = bedData.getBedSpawnCoords().split(":");
-        Location respawnLocation = new Location(world, Double.parseDouble(coords[0]), Double.parseDouble(coords[1]),
-                Double.parseDouble(coords[2]));
         if (!teleport(player, respawnLocation)) {
             Bukkit.getScheduler().runTask(plugin, () -> sendPlayerToDefaultRespawn(player, false));
         }
@@ -644,10 +640,10 @@ public class RespawnMenuHandler implements Listener {
 
         Location defaultRespawn = getPlayerRespawnLoc(player);
         PersistentDataContainer playerData = player.getPersistentDataContainer();
-        playerData.remove(new NamespacedKey(plugin, "spawnLoc"));
+        playerData.remove(PluginKeys.spawnLoc());
 
         if (timedOut) {
-            player.sendActionBar(Component.text(stripColors(message("respawn-menu-timeout",
+            player.sendActionBar(Component.text(stripColors(plugin.message("respawn-menu-timeout",
                     "Respawn menu timed out. Sending you to spawn."))).color(NamedTextColor.YELLOW));
         }
 
@@ -662,34 +658,35 @@ public class RespawnMenuHandler implements Listener {
     private static boolean shareBed(Player owner, Player receiver, String bedUuid) {
         PlayerBedsData ownerBedsData = getPlayerBedsData(owner);
         if (ownerBedsData == null || ownerBedsData.getPlayerBedData() == null || !ownerBedsData.hasBed(bedUuid)) {
-            owner.sendMessage(ChatColor.RED + message("bed-not-registered-message", "You have not registered this bed!"));
+            owner.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
+                    "You have not registered this bed!"));
             return false;
         }
 
         PersistentDataContainer receiverData = receiver.getPersistentDataContainer();
-        PlayerBedsData receiverBedsData = receiverData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())
-                ? receiverData.get(new NamespacedKey(plugin, "beds"), new BedsDataType())
+        PlayerBedsData receiverBedsData = receiverData.has(PluginKeys.beds(), PluginKeys.bedsDataType())
+                ? receiverData.get(PluginKeys.beds(), PluginKeys.bedsDataType())
                 : new PlayerBedsData();
 
         ownerBedsData.shareBed(receiverBedsData, bedUuid);
-        receiverData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), receiverBedsData);
-        owner.getPersistentDataContainer().set(new NamespacedKey(plugin, "beds"), new BedsDataType(), ownerBedsData);
+        receiverData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), receiverBedsData);
+        owner.getPersistentDataContainer().set(PluginKeys.beds(), PluginKeys.bedsDataType(), ownerBedsData);
         plugin.getBedOwnershipStore().syncPlayerBeds(owner);
         plugin.getBedOwnershipStore().syncPlayerBeds(receiver);
 
-        owner.sendMessage(ChatColor.YELLOW + message("bed-shared-successfully-message",
+        owner.sendMessage(ChatColor.YELLOW + plugin.message("bed-shared-successfully-message",
                 "Bed shared successfully with {1}!").replace("{1}", receiver.getName()));
-        receiver.sendMessage(ChatColor.YELLOW + message("bed-shared-received-message",
+        receiver.sendMessage(ChatColor.YELLOW + plugin.message("bed-shared-received-message",
                 "You received a shared bed from {1}!").replace("{1}", owner.getName()));
         return true;
     }
 
     private static PlayerBedsData getPlayerBedsData(Player player) {
         PersistentDataContainer playerData = player.getPersistentDataContainer();
-        if (!playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
+        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
             return null;
         }
-        return playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
+        return playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
     }
 
     private static List<BedMenuEntry> getMenuEntries(Player player) {
@@ -708,18 +705,18 @@ public class RespawnMenuHandler implements Listener {
             World respawnWorld = getPlayerRespawnLoc(player).getWorld();
             if (respawnWorld == null) {
                 return List.of();
-            }
+        }
             sortedBeds.removeIf(entry -> !entry.getValue().getBedWorld().equalsIgnoreCase(respawnWorld.getName()));
         }
-        sortedBeds.sort(Comparator.comparing(entry -> getSortKey(entry.getValue()), String.CASE_INSENSITIVE_ORDER));
+        sortedBeds.sort(Comparator.comparing(entry -> entry.getValue().getSortKey(), String.CASE_INSENSITIVE_ORDER));
 
         List<BedMenuEntry> entries = new ArrayList<>();
         int index = 1;
         for (Map.Entry<String, BedData> entry : sortedBeds) {
             BedData bedData = entry.getValue();
-            String displayName = bedData.getBedName() != null
+            String displayName = bedData.hasCustomName()
                     ? bedData.getBedName()
-                    : message("default-bed-name", "Bed {1}").replace("{1}", Integer.toString(index));
+                    : plugin.message("default-bed-name", "Bed {1}").replace("{1}", Integer.toString(index));
             BedStatus status = resolveStatus(player, entry.getKey(), bedData);
             long remainingSeconds = Math.max(0L, (bedData.getBedCooldown() - System.currentTimeMillis() + 999L) / 1000L);
             entries.add(new BedMenuEntry(entry.getKey(), bedData, displayName, status, remainingSeconds));
@@ -738,20 +735,14 @@ public class RespawnMenuHandler implements Listener {
     }
 
     private static BedStatus resolveStatus(Player player, String uuid, BedData bedData) {
-        if (!isRegisteredBedPresent(getBedLocation(bedData), uuid)) {
+        Location bedLocation = bedData.getBedLocation();
+        if (bedLocation == null || !isRegisteredBedPresent(bedLocation, uuid)) {
             return BedStatus.MISSING;
         }
         if (!player.hasPermission("multiplebedspawn.skipcooldown") && bedData.getBedCooldown() > System.currentTimeMillis()) {
             return BedStatus.COOLDOWN;
         }
         return BedStatus.AVAILABLE;
-    }
-
-    private static Location getBedLocation(BedData bedData) {
-        World world = Bukkit.getWorld(bedData.getBedWorld());
-        String[] coords = bedData.getBedCoords().split(":");
-        return new Location(world, Double.parseDouble(coords[0]), Double.parseDouble(coords[1]),
-                Double.parseDouble(coords[2]));
     }
 
     private static List<Player> getShareCandidates(Player player) {
@@ -773,7 +764,7 @@ public class RespawnMenuHandler implements Listener {
             hasMetadata = true;
         }
         if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-            lore.add(ChatColor.GRAY + formatCoords(entry.bedData()));
+            lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
             hasMetadata = true;
         }
         if (hasMetadata) {
@@ -783,47 +774,31 @@ public class RespawnMenuHandler implements Listener {
         if (respawnMode) {
             switch (entry.status()) {
                 case AVAILABLE -> lore.add(ChatColor.YELLOW
-                        + message("respawn-menu-click-respawn", "Left-click to respawn here."));
+                        + plugin.message("respawn-menu-click-respawn", "Left-click to respawn here."));
                 case COOLDOWN -> lore.add(ChatColor.RED
-                        + message("respawn-menu-bed-cooldown", "Available in {1}s.")
+                        + plugin.message("respawn-menu-bed-cooldown", "Available in {1}s.")
                                 .replace("{1}", Long.toString(entry.remainingCooldownSeconds())));
                 case MISSING -> lore.add(ChatColor.RED
-                        + message("respawn-menu-bed-missing", "This bed no longer exists."));
+                        + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
             }
         } else {
             switch (entry.status()) {
                 case AVAILABLE -> lore.add(ChatColor.YELLOW
-                        + message("manage-menu-click-manage", "Click to manage this bed."));
+                        + plugin.message("manage-menu-click-manage", "Click to manage this bed."));
                 case COOLDOWN -> {
                     lore.add(ChatColor.GOLD
-                            + message("respawn-menu-bed-cooldown", "Available in {1}s.")
+                            + plugin.message("respawn-menu-bed-cooldown", "Available in {1}s.")
                                     .replace("{1}", Long.toString(entry.remainingCooldownSeconds())));
-                    lore.add(ChatColor.YELLOW + message("manage-menu-click-manage", "Click to manage this bed."));
+                    lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage", "Click to manage this bed."));
                 }
                 case MISSING -> {
-                    lore.add(ChatColor.RED + message("respawn-menu-bed-missing", "This bed no longer exists."));
-                    lore.add(ChatColor.YELLOW + message("manage-menu-click-manage", "Click to manage this bed."));
+                    lore.add(ChatColor.RED + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
+                    lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage", "Click to manage this bed."));
                 }
             }
         }
 
         return lore;
-    }
-
-    private static String getSortKey(BedData bedData) {
-        if (bedData.getBedName() != null && !bedData.getBedName().isBlank()) {
-            return stripColors(bedData.getBedName());
-        }
-        return bedData.getBedWorld() + ":" + bedData.getBedCoords();
-    }
-
-    private static String formatCoords(BedData bedData) {
-        String[] coords = bedData.getBedCoords().split(":");
-        return "X: " + formatCoord(coords[0]) + " Y: " + formatCoord(coords[1]) + " Z: " + formatCoord(coords[2]);
-    }
-
-    private static String formatCoord(String coordinate) {
-        return Integer.toString((int) Math.floor(Double.parseDouble(coordinate)));
     }
 
     private static boolean hasCooldownEntries(List<BedMenuEntry> entries) {
@@ -843,7 +818,7 @@ public class RespawnMenuHandler implements Listener {
 
         cancelSession(player.getUniqueId());
         player.closeInventory();
-        player.sendMessage(ChatColor.YELLOW + message("no-beds-saved", "You have no saved beds."));
+        player.sendMessage(ChatColor.YELLOW + plugin.message("no-beds-saved", "You have no saved beds."));
     }
 
     private static void prepareInventorySwap(Player player, BedMenuSession session) {
@@ -909,7 +884,7 @@ public class RespawnMenuHandler implements Listener {
     }
 
     private static boolean isRespawnProtected(Player player) {
-        return player.getPersistentDataContainer().has(new NamespacedKey(plugin, "hasProp"), PersistentDataType.BOOLEAN);
+        return player.getPersistentDataContainer().has(PluginKeys.hasProp(), PersistentDataType.BOOLEAN);
     }
 
     private static int getListPage(Player player) {
@@ -946,14 +921,6 @@ public class RespawnMenuHandler implements Listener {
         meta.setDisplayName(name);
         item.setItemMeta(meta);
         return item;
-    }
-
-    private static String message(String key, String fallback) {
-        String value = plugin.getMessages(key);
-        if (value == null || value.isBlank()) {
-            value = fallback;
-        }
-        return ChatColor.translateAlternateColorCodes('&', value);
     }
 
     private static String stripColors(String value) {

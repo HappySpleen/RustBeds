@@ -2,11 +2,9 @@ package me.gabij.multiplebedspawn.utils;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.BedsDataType;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -29,11 +27,11 @@ public class BedsUtils {
     public static BedData removePlayerBed(String bedUUID, Player p, boolean clearBlockUuid) {
         PersistentDataContainer playerData = p.getPersistentDataContainer();
         // checks to see if player has beds
-        if (!playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
+        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
             return null;
         }
 
-        PlayerBedsData playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
+        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             return null;
         }
@@ -45,7 +43,7 @@ public class BedsUtils {
 
         BedData bedData = beds.get(bedUUID);
         playerBedsData.removeBed(bedUUID);
-        playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
+        playerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
         plugin.getBedOwnershipStore().syncPlayerBeds(p);
 
         if (clearBlockUuid && !hasAnyRemainingOwner(bedUUID, p)) {
@@ -86,7 +84,7 @@ public class BedsUtils {
         BlockState blockState = bed.getState();
         if (blockState instanceof TileState tileState) {
             PersistentDataContainer container = tileState.getPersistentDataContainer();
-            String uuid = container.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
+            String uuid = container.get(PluginKeys.uuid(), PersistentDataType.STRING);
             return uuid != null && uuid.equalsIgnoreCase(bedUUID);
         }
 
@@ -163,11 +161,11 @@ public class BedsUtils {
 
     private static boolean playerHasBed(Player player, String bedUUID) {
         PersistentDataContainer playerData = player.getPersistentDataContainer();
-        if (!playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
+        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
             return false;
         }
 
-        PlayerBedsData playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
+        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
         return playerBedsData != null
                 && playerBedsData.getPlayerBedData() != null
                 && playerBedsData.hasBed(bedUUID);
@@ -179,9 +177,11 @@ public class BedsUtils {
             return;
         }
 
-        String[] loc = bedData.getBedCoords().split(":");
-        Location locBed = new Location(world, Double.parseDouble(loc[0]), Double.parseDouble(loc[1]),
-                Double.parseDouble(loc[2]));
+        Location locBed = bedData.getBedLocation();
+        if (locBed == null) {
+            return;
+        }
+
         Block bed = checkIfIsBed(world.getBlockAt(locBed));
         if (bed == null) {
             return;
@@ -190,7 +190,7 @@ public class BedsUtils {
         BlockState blockState = bed.getState();
         if (blockState instanceof TileState tileState) {
             PersistentDataContainer container = tileState.getPersistentDataContainer();
-            container.remove(new NamespacedKey(plugin, "uuid"));
+            container.remove(PluginKeys.uuid());
             tileState.update();
         }
     }

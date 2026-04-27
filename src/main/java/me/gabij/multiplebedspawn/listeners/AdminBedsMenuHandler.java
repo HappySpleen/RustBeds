@@ -3,14 +3,13 @@ package me.gabij.multiplebedspawn.listeners;
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.gui.AdminBedsMenuHolder;
 import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.BedsDataType;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
+import me.gabij.multiplebedspawn.utils.PluginKeys;
 import me.gabij.multiplebedspawn.utils.TeleportUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -60,7 +59,7 @@ public class AdminBedsMenuHandler implements Listener {
 
     public static void openOwnerMenu(Player admin, int requestedPage) {
         if (!admin.hasPermission("multiplebedspawn.admin")) {
-            admin.sendMessage(ChatColor.RED + message("admin-beds-no-permission",
+            admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-no-permission",
                     "You do not have permission to use this command."));
             admin.closeInventory();
             return;
@@ -72,7 +71,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(),
                 AdminBedsMenuHolder.ViewType.OWNER_LIST, page, 0, null, null);
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE, message("admin-beds-title", "Admin beds"));
+        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE, plugin.message("admin-beds-title", "Admin beds"));
         holder.setInventory(inventory);
 
         renderOwnerMenu(inventory, owners, page, totalPages);
@@ -82,7 +81,7 @@ public class AdminBedsMenuHandler implements Listener {
     public static void openOwnerBedsMenu(Player admin, UUID ownerId, int requestedPage) {
         Player owner = getOnlineOwner(ownerId);
         if (owner == null) {
-            admin.sendMessage(ChatColor.RED + message("admin-beds-owner-offline",
+            admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-owner-offline",
                     "That player is no longer online."));
             openOwnerMenu(admin, 0);
             return;
@@ -90,7 +89,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         List<BedMenuEntry> entries = getOwnerBedEntries(owner);
         if (entries.isEmpty()) {
-            admin.sendMessage(ChatColor.YELLOW + message("admin-beds-owner-no-beds",
+            admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-owner-no-beds",
                     "That player has no saved beds."));
             openOwnerMenu(admin, 0);
             return;
@@ -102,7 +101,7 @@ public class AdminBedsMenuHandler implements Listener {
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(), AdminBedsMenuHolder.ViewType.BED_LIST,
                 page, 0, ownerId, null);
         Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
-                message("admin-beds-owner-title", "Player beds"));
+                plugin.message("admin-beds-owner-title", "Player beds"));
         holder.setInventory(inventory);
 
         renderOwnerBedsMenu(inventory, owner, entries, page, totalPages);
@@ -112,7 +111,7 @@ public class AdminBedsMenuHandler implements Listener {
     public static void openActionMenu(Player admin, UUID ownerId, int returnPage, String bedUuid) {
         Player owner = getOnlineOwner(ownerId);
         if (owner == null) {
-            admin.sendMessage(ChatColor.RED + message("admin-beds-owner-offline",
+            admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-owner-offline",
                     "That player is no longer online."));
             openOwnerMenu(admin, 0);
             return;
@@ -120,7 +119,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         BedMenuEntry entry = getOwnerBedEntry(owner, bedUuid);
         if (entry == null) {
-            admin.sendMessage(ChatColor.RED + message("bed-not-registered-message",
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
                     "That player no longer has that bed saved."));
             openOwnerBedsMenu(admin, ownerId, returnPage);
             return;
@@ -129,7 +128,7 @@ public class AdminBedsMenuHandler implements Listener {
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(), AdminBedsMenuHolder.ViewType.ACTIONS,
                 returnPage, 0, ownerId, bedUuid);
         Inventory inventory = Bukkit.createInventory(holder, ACTION_SIZE,
-                message("admin-beds-actions-title", "Admin bed actions"));
+                plugin.message("admin-beds-actions-title", "Admin bed actions"));
         holder.setInventory(inventory);
 
         renderActionMenu(inventory, owner, entry);
@@ -140,7 +139,7 @@ public class AdminBedsMenuHandler implements Listener {
             int requestedPage) {
         Player owner = getOnlineOwner(ownerId);
         if (owner == null) {
-            admin.sendMessage(ChatColor.RED + message("admin-beds-owner-offline",
+            admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-owner-offline",
                     "That player is no longer online."));
             openOwnerMenu(admin, 0);
             return;
@@ -148,7 +147,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         BedMenuEntry entry = getOwnerBedEntry(owner, bedUuid);
         if (entry == null) {
-            admin.sendMessage(ChatColor.RED + message("bed-not-registered-message",
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
                     "That player no longer has that bed saved."));
             openOwnerBedsMenu(admin, ownerId, returnPage);
             return;
@@ -161,7 +160,7 @@ public class AdminBedsMenuHandler implements Listener {
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(),
                 AdminBedsMenuHolder.ViewType.TELEPORT_TARGET_LIST, page, returnPage, ownerId, bedUuid);
         Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
-                message("admin-beds-teleport-title", "Teleport player"));
+                plugin.message("admin-beds-teleport-title", "Teleport player"));
         holder.setInventory(inventory);
 
         renderTeleportTargetMenu(inventory, owner, entry, targets, page, totalPages);
@@ -242,7 +241,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         Player owner = getOnlineOwner(ownerId);
         if (owner == null) {
-            admin.sendMessage(ChatColor.RED + message("admin-beds-owner-offline",
+            admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-owner-offline",
                     "That player is no longer online."));
             openOwnerMenu(admin, 0);
             return;
@@ -250,7 +249,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         BedMenuEntry entry = getOwnerBedEntry(owner, bedUuid);
         if (entry == null) {
-            admin.sendMessage(ChatColor.RED + message("bed-not-registered-message",
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
                     "That player no longer has that bed saved."));
             openOwnerBedsMenu(admin, ownerId, holder.getPage());
             return;
@@ -264,7 +263,7 @@ public class AdminBedsMenuHandler implements Listener {
                 }
 
                 AdminBedMenuInputListener.beginRenamePrompt(admin, ownerId, bedUuid, holder.getPage());
-                admin.sendMessage(ChatColor.YELLOW + message("rename-prompt",
+                admin.sendMessage(ChatColor.YELLOW + plugin.message("rename-prompt",
                         "Type the new bed name in chat. Type 'cancel' to abort."));
                 admin.closeInventory();
             }
@@ -286,7 +285,7 @@ public class AdminBedsMenuHandler implements Listener {
             }
             case ACTION_REMOVE_SLOT -> {
                 removePlayerBed(bedUuid, owner);
-                admin.sendMessage(ChatColor.YELLOW + message("admin-beds-remove-success",
+                admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-remove-success",
                         "Removed {1}'s saved bed.").replace("{1}", owner.getName()));
                 openOwnerBedsMenu(admin, ownerId, holder.getPage());
             }
@@ -320,20 +319,20 @@ public class AdminBedsMenuHandler implements Listener {
                 Player owner = getOnlineOwner(ownerId);
                 Player target = Bukkit.getPlayer(targetId);
                 if (owner == null) {
-                    admin.sendMessage(ChatColor.RED + message("admin-beds-owner-offline",
+                    admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-owner-offline",
                             "That player is no longer online."));
                     openOwnerMenu(admin, 0);
                     return;
                 }
                 if (target == null) {
-                    admin.sendMessage(ChatColor.RED + message("player-not-found", "Player not found!"));
+                    admin.sendMessage(ChatColor.RED + plugin.message("player-not-found", "Player not found!"));
                     openTeleportTargetMenu(admin, ownerId, bedUuid, holder.getContextPage(), holder.getPage());
                     return;
                 }
 
                 BedMenuEntry entry = getOwnerBedEntry(owner, bedUuid);
                 if (entry == null) {
-                    admin.sendMessage(ChatColor.RED + message("bed-not-registered-message",
+                    admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
                             "That player no longer has that bed saved."));
                     openOwnerBedsMenu(admin, ownerId, holder.getContextPage());
                     return;
@@ -358,30 +357,30 @@ public class AdminBedsMenuHandler implements Listener {
 
         if (page > 0) {
             inventory.setItem(PREVIOUS_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-previous", "Previous page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-previous", "Previous page"), List.of()));
         }
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + message("admin-beds-prompt", "Choose a player to manage."));
+        lore.add(ChatColor.GRAY + plugin.message("admin-beds-prompt", "Choose a player to manage."));
         if (owners.isEmpty()) {
-            lore.add(ChatColor.RED + message("admin-beds-empty",
+            lore.add(ChatColor.RED + plugin.message("admin-beds-empty",
                     "No other online players have saved beds."));
         }
         inventory.setItem(INFO_SLOT, createControlItem(Material.PLAYER_HEAD,
-                ChatColor.GOLD + message("admin-beds-page", "Players {1}/{2}")
+                ChatColor.GOLD + plugin.message("admin-beds-page", "Players {1}/{2}")
                         .replace("{1}", Integer.toString(page + 1))
                         .replace("{2}", Integer.toString(totalPages)),
                 lore));
         inventory.setItem(PRIMARY_ACTION_SLOT, createControlItem(Material.BARRIER,
-                ChatColor.RED + message("manage-menu-close", "Close menu"),
-                List.of(ChatColor.GRAY + message("manage-menu-close-lore", "Close the beds management menu."))));
+                ChatColor.RED + plugin.message("manage-menu-close", "Close menu"),
+                List.of(ChatColor.GRAY + plugin.message("manage-menu-close-lore", "Close the beds management menu."))));
         inventory.setItem(CLOSE_SLOT, createControlItem(Material.BARRIER,
-                ChatColor.RED + message("manage-menu-close", "Close menu"),
-                List.of(ChatColor.GRAY + message("manage-menu-close-lore", "Close the beds management menu."))));
+                ChatColor.RED + plugin.message("manage-menu-close", "Close menu"),
+                List.of(ChatColor.GRAY + plugin.message("manage-menu-close-lore", "Close the beds management menu."))));
 
         if (page < totalPages - 1) {
             inventory.setItem(NEXT_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-next", "Next page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-next", "Next page"), List.of()));
         }
     }
 
@@ -398,29 +397,29 @@ public class AdminBedsMenuHandler implements Listener {
 
         if (page > 0) {
             inventory.setItem(PREVIOUS_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-previous", "Previous page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-previous", "Previous page"), List.of()));
         }
 
         inventory.setItem(INFO_SLOT, createControlItem(Material.BOOK,
-                ChatColor.GOLD + message("admin-beds-owner-page", "{1}'s beds {2}/{3}")
+                ChatColor.GOLD + plugin.message("admin-beds-owner-page", "{1}'s beds {2}/{3}")
                         .replace("{1}", owner.getName())
                         .replace("{2}", Integer.toString(page + 1))
                         .replace("{3}", Integer.toString(totalPages)),
                 List.of(
-                        ChatColor.GRAY + message("admin-beds-owner-prompt",
+                        ChatColor.GRAY + plugin.message("admin-beds-owner-prompt",
                                 "Click a bed to rename, remove, or teleport to it."),
                         ChatColor.DARK_PURPLE + owner.getName())));
         inventory.setItem(PRIMARY_ACTION_SLOT, createControlItem(Material.ARROW,
-                ChatColor.YELLOW + message("admin-beds-back-players", "Back to players"),
-                List.of(ChatColor.GRAY + message("admin-beds-back-players-lore",
+                ChatColor.YELLOW + plugin.message("admin-beds-back-players", "Back to players"),
+                List.of(ChatColor.GRAY + plugin.message("admin-beds-back-players-lore",
                         "Return to the player selection menu."))));
         inventory.setItem(CLOSE_SLOT, createControlItem(Material.BARRIER,
-                ChatColor.RED + message("manage-menu-close", "Close menu"),
-                List.of(ChatColor.GRAY + message("manage-menu-close-lore", "Close the beds management menu."))));
+                ChatColor.RED + plugin.message("manage-menu-close", "Close menu"),
+                List.of(ChatColor.GRAY + plugin.message("manage-menu-close-lore", "Close the beds management menu."))));
 
         if (page < totalPages - 1) {
             inventory.setItem(NEXT_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-next", "Next page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-next", "Next page"), List.of()));
         }
     }
 
@@ -431,23 +430,23 @@ public class AdminBedsMenuHandler implements Listener {
         inventory.setItem(ACTION_RENAME_SLOT, createActionItem(
                 entry.status() != BedStatus.MISSING ? Material.NAME_TAG : Material.GRAY_DYE,
                 entry.status() != BedStatus.MISSING,
-                message("bed-action-rename", "Rename bed"),
-                message("bed-action-rename-lore", "Rename this saved bed.")));
+                plugin.message("bed-action-rename", "Rename bed"),
+                plugin.message("bed-action-rename-lore", "Rename this saved bed.")));
         inventory.setItem(ACTION_TELEPORT_SELF_SLOT, createActionItem(
                 entry.status() != BedStatus.MISSING ? Material.ENDER_PEARL : Material.GRAY_DYE,
                 entry.status() != BedStatus.MISSING,
-                message("admin-beds-teleport-self", "Teleport to bed"),
-                message("admin-beds-teleport-self-lore", "Teleport yourself to this saved bed.")));
+                plugin.message("admin-beds-teleport-self", "Teleport to bed"),
+                plugin.message("admin-beds-teleport-self-lore", "Teleport yourself to this saved bed.")));
         inventory.setItem(ACTION_TELEPORT_OTHER_SLOT, createActionItem(
                 entry.status() != BedStatus.MISSING ? Material.PLAYER_HEAD : Material.GRAY_DYE,
                 entry.status() != BedStatus.MISSING,
-                message("admin-beds-teleport-other", "Teleport player to bed"),
-                message("admin-beds-teleport-other-lore", "Choose another player to teleport to this bed.")));
+                plugin.message("admin-beds-teleport-other", "Teleport player to bed"),
+                plugin.message("admin-beds-teleport-other-lore", "Choose another player to teleport to this bed.")));
         inventory.setItem(ACTION_REMOVE_SLOT, createActionItem(Material.BARRIER, true,
-                message("bed-action-remove", "Remove bed"),
-                message("bed-action-remove-lore", "Remove this bed from the saved list.")));
+                plugin.message("bed-action-remove", "Remove bed"),
+                plugin.message("bed-action-remove-lore", "Remove this bed from the saved list.")));
         inventory.setItem(ACTION_BACK_SLOT, createControlItem(Material.ARROW,
-                ChatColor.YELLOW + message("bed-action-back", "Back to beds"), List.of()));
+                ChatColor.YELLOW + plugin.message("bed-action-back", "Back to beds"), List.of()));
     }
 
     private static void renderTeleportTargetMenu(Inventory inventory, Player owner, BedMenuEntry entry,
@@ -463,33 +462,33 @@ public class AdminBedsMenuHandler implements Listener {
 
         if (page > 0) {
             inventory.setItem(PREVIOUS_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-previous", "Previous page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-previous", "Previous page"), List.of()));
         }
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + message("admin-beds-target-prompt",
+        lore.add(ChatColor.GRAY + plugin.message("admin-beds-target-prompt",
                 "Choose a player to teleport to this bed."));
         lore.add(ChatColor.DARK_PURPLE + owner.getName() + ": " + entry.displayName());
         if (targets.isEmpty()) {
-            lore.add(ChatColor.RED + message("admin-beds-target-empty",
+            lore.add(ChatColor.RED + plugin.message("admin-beds-target-empty",
                     "No other online players are available."));
         }
         inventory.setItem(INFO_SLOT, createControlItem(Material.PLAYER_HEAD,
-                ChatColor.GOLD + message("admin-beds-target-page", "Teleport targets {1}/{2}")
+                ChatColor.GOLD + plugin.message("admin-beds-target-page", "Teleport targets {1}/{2}")
                         .replace("{1}", Integer.toString(page + 1))
                         .replace("{2}", Integer.toString(totalPages)),
                 lore));
         inventory.setItem(PRIMARY_ACTION_SLOT, createControlItem(Material.ARROW,
-                ChatColor.YELLOW + message("bed-action-back", "Back to beds"),
-                List.of(ChatColor.GRAY + message("admin-beds-target-back-lore",
+                ChatColor.YELLOW + plugin.message("bed-action-back", "Back to beds"),
+                List.of(ChatColor.GRAY + plugin.message("admin-beds-target-back-lore",
                         "Return to the selected bed actions."))));
         inventory.setItem(CLOSE_SLOT, createControlItem(Material.BARRIER,
-                ChatColor.RED + message("manage-menu-close", "Close menu"),
-                List.of(ChatColor.GRAY + message("manage-menu-close-lore", "Close the beds management menu."))));
+                ChatColor.RED + plugin.message("manage-menu-close", "Close menu"),
+                List.of(ChatColor.GRAY + plugin.message("manage-menu-close-lore", "Close the beds management menu."))));
 
         if (page < totalPages - 1) {
             inventory.setItem(NEXT_PAGE_SLOT, createControlItem(Material.ARROW,
-                    ChatColor.YELLOW + message("respawn-menu-next", "Next page"), List.of()));
+                    ChatColor.YELLOW + plugin.message("respawn-menu-next", "Next page"), List.of()));
         }
     }
 
@@ -499,11 +498,11 @@ public class AdminBedsMenuHandler implements Listener {
         meta.setOwningPlayer(owner);
         meta.setDisplayName(ChatColor.GREEN + owner.getName());
         meta.setLore(List.of(
-                ChatColor.GRAY + message("admin-beds-owner-count", "Beds saved: {1}")
+                ChatColor.GRAY + plugin.message("admin-beds-owner-count", "Beds saved: {1}")
                         .replace("{1}", Integer.toString(getSavedBedCount(owner))),
-                ChatColor.YELLOW + message("admin-beds-owner-click",
+                ChatColor.YELLOW + plugin.message("admin-beds-owner-click",
                         "Click to manage this player's beds.")));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "admin-owner"), PersistentDataType.STRING,
+        meta.getPersistentDataContainer().set(PluginKeys.adminOwner(), PersistentDataType.STRING,
                 owner.getUniqueId().toString());
         item.setItemMeta(meta);
         return item;
@@ -519,8 +518,7 @@ public class AdminBedsMenuHandler implements Listener {
         });
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.setLore(buildBedLore(entry));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "admin-bed"), PersistentDataType.STRING,
-                entry.uuid());
+        meta.getPersistentDataContainer().set(PluginKeys.adminBed(), PersistentDataType.STRING, entry.uuid());
         item.setItemMeta(meta);
         return item;
     }
@@ -538,13 +536,13 @@ public class AdminBedsMenuHandler implements Listener {
             lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
         }
         if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-            lore.add(ChatColor.GRAY + formatCoords(entry.bedData()));
+            lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
         }
         lore.add("");
         switch (entry.status()) {
-            case AVAILABLE -> lore.add(ChatColor.GREEN + message("bed-action-ready", "Ready to manage."));
+            case AVAILABLE -> lore.add(ChatColor.GREEN + plugin.message("bed-action-ready", "Ready to manage."));
             case MISSING -> lore.add(ChatColor.RED
-                    + message("respawn-menu-bed-missing", "This bed no longer exists."));
+                    + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
         }
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -556,9 +554,9 @@ public class AdminBedsMenuHandler implements Listener {
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(target);
         meta.setDisplayName(ChatColor.GREEN + target.getName());
-        meta.setLore(List.of(ChatColor.GRAY + message("admin-beds-target-click",
+        meta.setLore(List.of(ChatColor.GRAY + plugin.message("admin-beds-target-click",
                 "Click to teleport this player to the bed.")));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "admin-target"), PersistentDataType.STRING,
+        meta.getPersistentDataContainer().set(PluginKeys.adminTarget(), PersistentDataType.STRING,
                 target.getUniqueId().toString());
         item.setItemMeta(meta);
         return item;
@@ -587,26 +585,26 @@ public class AdminBedsMenuHandler implements Listener {
     private static boolean teleportPlayerToBed(Player admin, Player target, Player owner, BedMenuEntry entry) {
         Location teleportLocation = getSpawnLocation(entry.bedData());
         if (teleportLocation == null || teleportLocation.getWorld() == null) {
-            admin.sendMessage(ChatColor.RED + message("respawn-menu-bed-missing",
+            admin.sendMessage(ChatColor.RED + plugin.message("respawn-menu-bed-missing",
                     "This bed no longer exists."));
             return false;
         }
 
         if (!TeleportUtils.teleport(target, teleportLocation)) {
-            admin.sendMessage(ChatColor.RED + message("admin-beds-teleport-failed",
+            admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-teleport-failed",
                     "Could not teleport the player to that bed."));
             return false;
         }
 
         if (target.getUniqueId().equals(admin.getUniqueId())) {
-            admin.sendMessage(ChatColor.YELLOW + message("admin-beds-teleport-self-success",
+            admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-teleport-self-success",
                     "Teleported to {1}'s bed.").replace("{1}", owner.getName()));
         } else {
-            admin.sendMessage(ChatColor.YELLOW + message("admin-beds-teleport-other-success",
+            admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-teleport-other-success",
                     "Teleported {1} to {2}'s bed.")
                     .replace("{1}", target.getName())
                     .replace("{2}", owner.getName()));
-            target.sendMessage(ChatColor.YELLOW + message("admin-beds-teleport-target-message",
+            target.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-teleport-target-message",
                     "An admin teleported you to {1}'s bed.").replace("{1}", owner.getName()));
         }
 
@@ -619,11 +617,10 @@ public class AdminBedsMenuHandler implements Listener {
 
     private static PlayerBedsData getPlayerBedsData(Player owner) {
         PersistentDataContainer ownerData = owner.getPersistentDataContainer();
-        NamespacedKey bedsKey = new NamespacedKey(plugin, "beds");
-        if (!ownerData.has(bedsKey, new BedsDataType())) {
+        if (!ownerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
             return null;
         }
-        return ownerData.get(bedsKey, new BedsDataType());
+        return ownerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
     }
 
     private static int getSavedBedCount(Player owner) {
@@ -668,15 +665,15 @@ public class AdminBedsMenuHandler implements Listener {
         }
 
         List<Map.Entry<String, BedData>> sortedBeds = new ArrayList<>(savedBeds.entrySet());
-        sortedBeds.sort(Comparator.comparing(entry -> getSortKey(entry.getValue()), String.CASE_INSENSITIVE_ORDER));
+        sortedBeds.sort(Comparator.comparing(entry -> entry.getValue().getSortKey(), String.CASE_INSENSITIVE_ORDER));
 
         List<BedMenuEntry> entries = new ArrayList<>();
         int index = 1;
         for (Map.Entry<String, BedData> entry : sortedBeds) {
             BedData bedData = entry.getValue();
-            String displayName = bedData.getBedName() != null && !bedData.getBedName().isBlank()
+            String displayName = bedData.hasCustomName()
                     ? bedData.getBedName()
-                    : message("default-bed-name", "Bed {1}").replace("{1}", Integer.toString(index));
+                    : plugin.message("default-bed-name", "Bed {1}").replace("{1}", Integer.toString(index));
             BedStatus status = resolveStatus(entry.getKey(), bedData);
             entries.add(new BedMenuEntry(entry.getKey(), bedData, displayName, status));
             index++;
@@ -694,28 +691,15 @@ public class AdminBedsMenuHandler implements Listener {
     }
 
     private static BedStatus resolveStatus(String uuid, BedData bedData) {
-        if (!isRegisteredBedPresent(getBedLocation(bedData), uuid)) {
+        Location bedLocation = bedData.getBedLocation();
+        if (bedLocation == null || !isRegisteredBedPresent(bedLocation, uuid)) {
             return BedStatus.MISSING;
         }
         return BedStatus.AVAILABLE;
     }
 
-    private static Location getBedLocation(BedData bedData) {
-        World world = Bukkit.getWorld(bedData.getBedWorld());
-        String[] coords = bedData.getBedCoords().split(":");
-        return new Location(world, Double.parseDouble(coords[0]), Double.parseDouble(coords[1]),
-                Double.parseDouble(coords[2]));
-    }
-
     private static Location getSpawnLocation(BedData bedData) {
-        World world = Bukkit.getWorld(bedData.getBedWorld());
-        if (world == null) {
-            return null;
-        }
-
-        String[] coords = bedData.getBedSpawnCoords().split(":");
-        return new Location(world, Double.parseDouble(coords[0]), Double.parseDouble(coords[1]),
-                Double.parseDouble(coords[2]));
+        return bedData.getSpawnLocation();
     }
 
     private static List<String> buildBedLore(BedMenuEntry entry) {
@@ -726,44 +710,34 @@ public class AdminBedsMenuHandler implements Listener {
             hasMetadata = true;
         }
         if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-            lore.add(ChatColor.GRAY + formatCoords(entry.bedData()));
+            lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
             hasMetadata = true;
         }
         if (hasMetadata) {
             lore.add("");
         }
         switch (entry.status()) {
-            case AVAILABLE -> lore.add(ChatColor.YELLOW + message("manage-menu-click-manage",
+            case AVAILABLE -> lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage",
                     "Click to manage this bed."));
-            case MISSING -> lore.add(ChatColor.RED + message("respawn-menu-bed-missing",
+            case MISSING -> lore.add(ChatColor.RED + plugin.message("respawn-menu-bed-missing",
                     "This bed no longer exists."));
         }
         return lore;
-    }
-
-    private static String getSortKey(BedData bedData) {
-        if (bedData.getBedName() != null && !bedData.getBedName().isBlank()) {
-            String stripped = ChatColor.stripColor(bedData.getBedName());
-            return stripped == null ? bedData.getBedName() : stripped;
-        }
-        return bedData.getBedWorld() + ":" + bedData.getBedCoords();
-    }
-
-    private static String formatCoords(BedData bedData) {
-        String[] coords = bedData.getBedCoords().split(":");
-        return "X: " + formatCoord(coords[0]) + " Y: " + formatCoord(coords[1]) + " Z: " + formatCoord(coords[2]);
-    }
-
-    private static String formatCoord(String coordinate) {
-        return Integer.toString((int) Math.floor(Double.parseDouble(coordinate)));
     }
 
     private static String getStringData(ItemStack clickedItem, String key) {
         if (clickedItem == null || !clickedItem.hasItemMeta()) {
             return null;
         }
-        return clickedItem.getItemMeta().getPersistentDataContainer()
-                .get(new NamespacedKey(plugin, key), PersistentDataType.STRING);
+        return switch (key) {
+            case "admin-owner" -> clickedItem.getItemMeta().getPersistentDataContainer()
+                    .get(PluginKeys.adminOwner(), PersistentDataType.STRING);
+            case "admin-bed" -> clickedItem.getItemMeta().getPersistentDataContainer()
+                    .get(PluginKeys.adminBed(), PersistentDataType.STRING);
+            case "admin-target" -> clickedItem.getItemMeta().getPersistentDataContainer()
+                    .get(PluginKeys.adminTarget(), PersistentDataType.STRING);
+            default -> null;
+        };
     }
 
     private static UUID getUuidData(ItemStack clickedItem, String key) {
@@ -805,14 +779,6 @@ public class AdminBedsMenuHandler implements Listener {
         meta.setDisplayName(name);
         item.setItemMeta(meta);
         return item;
-    }
-
-    private static String message(String key, String fallback) {
-        String value = plugin.getMessages(key);
-        if (value == null || value.isBlank()) {
-            value = fallback;
-        }
-        return ChatColor.translateAlternateColorCodes('&', value);
     }
 
     private enum BedStatus {

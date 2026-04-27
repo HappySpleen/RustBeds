@@ -7,6 +7,7 @@ import me.gabij.multiplebedspawn.listeners.*;
 import me.gabij.multiplebedspawn.utils.BedOwnershipStore;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -61,6 +62,20 @@ public final class MultipleBedSpawn extends JavaPlugin {
     // get message of selected language
     public String getMessages(String path) {
         return this.messages.getString(path);
+    }
+
+    public String message(String path, String fallback) {
+        String value = getMessages(path);
+        if (value == null || value.isBlank()) {
+            value = fallback;
+        }
+        return ChatColor.translateAlternateColorCodes('&', value);
+    }
+
+    public boolean isWorldEnabled(String worldName) {
+        List<String> denylist = getConfig().getStringList("denylist");
+        List<String> allowlist = getConfig().getStringList("allowlist");
+        return !denylist.contains(worldName) && (allowlist.contains(worldName) || allowlist.isEmpty());
     }
 
     public void reloadPluginSettings() {

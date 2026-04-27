@@ -5,8 +5,6 @@ import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
-import java.util.List;
-
 public class PlayerSetSpawnListener implements Listener {
 
     private final MultipleBedSpawn plugin;
@@ -23,12 +21,7 @@ public class PlayerSetSpawnListener implements Listener {
             return;
         }
 
-        String worldName = event.getLocation().getWorld().getName();
-        List<String> denylist = plugin.getConfig().getStringList("denylist");
-        List<String> allowlist = plugin.getConfig().getStringList("allowlist");
-        boolean passLists = (!denylist.contains(worldName)) && (allowlist.contains(worldName) || allowlist.isEmpty());
-
-        if (!passLists) {
+        if (!plugin.isWorldEnabled(event.getLocation().getWorld().getName())) {
             return;
         }
 

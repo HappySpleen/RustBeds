@@ -2,12 +2,11 @@ package me.gabij.multiplebedspawn.listeners;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.BedsDataType;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
+import me.gabij.multiplebedspawn.utils.PluginKeys;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
@@ -103,11 +102,11 @@ public class BedDestroyedListener implements Listener {
 
     private boolean playerHasBed(Player player, String bedUuid) {
         PersistentDataContainer playerData = player.getPersistentDataContainer();
-        if (!playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
+        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
             return false;
         }
 
-        PlayerBedsData playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
+        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
         return playerBedsData != null
                 && playerBedsData.getPlayerBedData() != null
                 && playerBedsData.hasBed(bedUuid);
@@ -120,12 +119,12 @@ public class BedDestroyedListener implements Listener {
         }
 
         PersistentDataContainer container = tileState.getPersistentDataContainer();
-        return container.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING);
+        return container.get(PluginKeys.uuid(), PersistentDataType.STRING);
     }
 
     private String buildDestroyedMessage(BedData bedData, Location location) {
-        if (bedData.getBedName() != null && !bedData.getBedName().isBlank()) {
-            return ChatColor.RED + message("bed-destroyed-message",
+        if (bedData.hasCustomName()) {
+            return ChatColor.RED + plugin.message("bed-destroyed-message",
                     "Your saved bed {1} was destroyed and removed.").replace("{1}", bedData.getBedName());
         }
 
@@ -134,7 +133,7 @@ public class BedDestroyedListener implements Listener {
 
     private String buildLocationDestroyedMessage(Location location) {
         String worldName = location.getWorld() == null ? "unknown" : location.getWorld().getName();
-        return ChatColor.RED + message("bed-destroyed-message-location",
+        return ChatColor.RED + plugin.message("bed-destroyed-message-location",
                 "Your saved bed at {1} in {2} was destroyed and removed.")
                 .replace("{1}", formatCoords(location))
                 .replace("{2}", worldName);
@@ -144,11 +143,4 @@ public class BedDestroyedListener implements Listener {
         return "X: " + location.getBlockX() + " Y: " + location.getBlockY() + " Z: " + location.getBlockZ();
     }
 
-    private String message(String key, String fallback) {
-        String value = plugin.getMessages(key);
-        if (value == null || value.isBlank()) {
-            value = fallback;
-        }
-        return ChatColor.translateAlternateColorCodes('&', value);
-    }
 }

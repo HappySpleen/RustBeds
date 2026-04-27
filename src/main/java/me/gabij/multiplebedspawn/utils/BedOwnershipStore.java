@@ -1,9 +1,7 @@
 package me.gabij.multiplebedspawn.utils;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
-import me.gabij.multiplebedspawn.models.BedsDataType;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
-import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -149,13 +147,12 @@ public class BedOwnershipStore {
     }
 
     private Set<String> getPlayerBedIds(Player player) {
-        NamespacedKey bedsKey = new NamespacedKey(plugin, "beds");
         PersistentDataContainer playerData = player.getPersistentDataContainer();
-        if (!playerData.has(bedsKey, new BedsDataType())) {
+        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
             return Set.of();
         }
 
-        PlayerBedsData playerBedsData = playerData.get(bedsKey, new BedsDataType());
+        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             return Set.of();
         }

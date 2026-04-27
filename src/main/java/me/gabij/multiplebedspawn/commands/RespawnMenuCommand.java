@@ -34,7 +34,7 @@ public class RespawnMenuCommand implements BasicCommand {
                 return;
             }
 
-            sender.sendMessage(ChatColor.RED + message("beds-command-usage",
+            sender.sendMessage(ChatColor.RED + plugin.message("beds-command-usage",
                     "Usage: /beds, /beds admin, or /beds reload"));
             return;
         }
@@ -43,7 +43,7 @@ public class RespawnMenuCommand implements BasicCommand {
         switch (subcommand) {
             case "admin" -> handleAdminCommand(sender);
             case "reload" -> handleReloadCommand(sender);
-            default -> sender.sendMessage(ChatColor.RED + message("beds-command-usage",
+            default -> sender.sendMessage(ChatColor.RED + plugin.message("beds-command-usage",
                     "Usage: /beds, /beds admin, or /beds reload"));
         }
     }
@@ -71,12 +71,12 @@ public class RespawnMenuCommand implements BasicCommand {
 
     private void handleAdminCommand(CommandSender sender) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(ChatColor.RED + message("beds-player-only", "Only players can use this command."));
+            sender.sendMessage(ChatColor.RED + plugin.message("beds-player-only", "Only players can use this command."));
             return;
         }
 
         if (!player.hasPermission("multiplebedspawn.admin")) {
-            player.sendMessage(ChatColor.RED + message("admin-beds-no-permission",
+            player.sendMessage(ChatColor.RED + plugin.message("admin-beds-no-permission",
                     "You do not have permission to use this command."));
             return;
         }
@@ -86,21 +86,13 @@ public class RespawnMenuCommand implements BasicCommand {
 
     private void handleReloadCommand(CommandSender sender) {
         if (!sender.hasPermission("multiplebedspawn.reload")) {
-            sender.sendMessage(ChatColor.RED + message("beds-reload-no-permission",
+            sender.sendMessage(ChatColor.RED + plugin.message("beds-reload-no-permission",
                     "You do not have permission to reload this plugin."));
             return;
         }
 
         plugin.reloadPluginSettings();
-        sender.sendMessage(ChatColor.YELLOW + message("beds-reload-success",
+        sender.sendMessage(ChatColor.YELLOW + plugin.message("beds-reload-success",
                 "MultipleBedSpawn settings reloaded from config.yml."));
-    }
-
-    private String message(String key, String fallback) {
-        String value = plugin.getMessages(key);
-        if (value == null || value.isBlank()) {
-            value = fallback;
-        }
-        return ChatColor.translateAlternateColorCodes('&', value);
     }
 }

@@ -2,11 +2,9 @@ package me.gabij.multiplebedspawn.utils;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.BedsDataType;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -34,51 +32,48 @@ public class PlayerUtils {
     public static void setPropPlayer(Player p) {
 
         PersistentDataContainer playerData = p.getPersistentDataContainer();
-        if (!playerData.has(new NamespacedKey(plugin, "hasProp"), PersistentDataType.BOOLEAN)) {
+        if (!playerData.has(PluginKeys.hasProp(), PersistentDataType.BOOLEAN)) {
             p.setInvulnerable(true);
 
-            playerData.set(new NamespacedKey(plugin, "isInvisible"), PersistentDataType.BOOLEAN, p.isInvisible());
+            playerData.set(PluginKeys.isInvisible(), PersistentDataType.BOOLEAN, p.isInvisible());
             p.setInvisible(true);
 
-            playerData.set(new NamespacedKey(plugin, "canPickupItems"), PersistentDataType.BOOLEAN,
-                    p.getCanPickupItems());
+            playerData.set(PluginKeys.canPickupItems(), PersistentDataType.BOOLEAN, p.getCanPickupItems());
             p.setCanPickupItems(false);
 
             if (plugin.getConfig().getBoolean("spawn-on-sky")) {
-                playerData.set(new NamespacedKey(plugin, "allowFly"), PersistentDataType.BOOLEAN, p.getAllowFlight());
+                playerData.set(PluginKeys.allowFly(), PersistentDataType.BOOLEAN, p.getAllowFlight());
                 p.setAllowFlight(true);
                 p.setFlying(true);
             }
-            playerData.set(new NamespacedKey(plugin, "lastWalkspeed"), PersistentDataType.FLOAT, p.getWalkSpeed());
+            playerData.set(PluginKeys.lastWalkSpeed(), PersistentDataType.FLOAT, p.getWalkSpeed());
             p.setWalkSpeed(0);
 
-            playerData.set(new NamespacedKey(plugin, "hasProp"), PersistentDataType.BOOLEAN, true);
+            playerData.set(PluginKeys.hasProp(), PersistentDataType.BOOLEAN, true);
         }
     }
 
     public static void undoPropPlayer(Player p) {
 
         PersistentDataContainer playerData = p.getPersistentDataContainer();
-        if (playerData.has(new NamespacedKey(plugin, "hasProp"), PersistentDataType.BOOLEAN)) {
-            playerData.remove(new NamespacedKey(plugin, "hasProp"));
+        if (playerData.has(PluginKeys.hasProp(), PersistentDataType.BOOLEAN)) {
+            playerData.remove(PluginKeys.hasProp());
 
             p.setInvulnerable(false);
-            p.setInvisible(playerData.get(new NamespacedKey(plugin, "isInvisible"), PersistentDataType.BOOLEAN));
-            p.setCanPickupItems(
-                    playerData.get(new NamespacedKey(plugin, "canPickupItems"), PersistentDataType.BOOLEAN));
+            p.setInvisible(playerData.get(PluginKeys.isInvisible(), PersistentDataType.BOOLEAN));
+            p.setCanPickupItems(playerData.get(PluginKeys.canPickupItems(), PersistentDataType.BOOLEAN));
 
-            playerData.remove(new NamespacedKey(plugin, "isInvisible"));
-            playerData.remove(new NamespacedKey(plugin, "canPickupItems"));
+            playerData.remove(PluginKeys.isInvisible());
+            playerData.remove(PluginKeys.canPickupItems());
 
-            p.setWalkSpeed(playerData.get(new NamespacedKey(plugin, "lastWalkspeed"), PersistentDataType.FLOAT));
-            playerData.remove(new NamespacedKey(plugin, "lastWalkspeed"));
+            p.setWalkSpeed(playerData.get(PluginKeys.lastWalkSpeed(), PersistentDataType.FLOAT));
+            playerData.remove(PluginKeys.lastWalkSpeed());
 
             if (plugin.getConfig().getBoolean("spawn-on-sky")) {
-                p.setAllowFlight(playerData.get(new NamespacedKey(plugin, "allowFly"), PersistentDataType.BOOLEAN));
+                p.setAllowFlight(playerData.get(PluginKeys.allowFly(), PersistentDataType.BOOLEAN));
                 p.setFlying(false);
 
-                playerData.remove(new NamespacedKey(plugin, "allowFly"));
-                playerData.remove(new NamespacedKey(plugin, "isFlying"));
+                playerData.remove(PluginKeys.allowFly());
             }
 
 
@@ -87,43 +82,12 @@ public class PlayerUtils {
 
     }
 
-    public static void teleportPlayer(Player p, PersistentDataContainer data, PersistentDataContainer playerData,
-            PlayerBedsData playerBedsData, String uuid) {
-        boolean isOkayToTP = true;
-
-        if (data.has(new NamespacedKey(plugin, "cooldown"), PersistentDataType.LONG)
-                && data.has(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING)) {
-
-            long cooldown = data.get(new NamespacedKey(plugin, "cooldown"), PersistentDataType.LONG);
-            if (cooldown > System.currentTimeMillis()) {
-                isOkayToTP = false;
-            }
-
-        }
-
-        if (isOkayToTP) {
-            HashMap<String, BedData> beds = playerBedsData.getPlayerBedData();
-            undoPropPlayer(p);
-            String loc[] = beds.get(uuid).getBedSpawnCoords().split(":");
-            World world = Bukkit.getWorld(beds.get(uuid).getBedWorld());
-            Location locSpawn = new Location(world, Double.parseDouble(loc[0]), Double.parseDouble(loc[1]),
-                    Double.parseDouble(loc[2]));
-            if (!p.hasPermission("multiplebedspawn.skipcooldown")) {
-                beds.get(uuid).setBedCooldown(
-                        System.currentTimeMillis() + (plugin.getConfig().getLong("bed-cooldown") * 1000));
-            }
-            playerData.set(new NamespacedKey(plugin, "beds"), new BedsDataType(), playerBedsData);
-            playerData.remove(new NamespacedKey(plugin, "spawnLoc"));
-            TeleportUtils.teleport(p, locSpawn);
-        }
-    }
-
     public static Location getPlayerRespawnLoc(Player p) {
         Location loc = p.getLocation();
         PersistentDataContainer playerData = p.getPersistentDataContainer();
-        if (playerData.has(new NamespacedKey(plugin, "spawnLoc"), PersistentDataType.STRING)) {
+        if (playerData.has(PluginKeys.spawnLoc(), PersistentDataType.STRING)) {
             Location playerRespawnLocation = stringToLocation(
-                    playerData.get(new NamespacedKey(plugin, "spawnLoc"), PersistentDataType.STRING));
+                    playerData.get(PluginKeys.spawnLoc(), PersistentDataType.STRING));
             if (playerRespawnLocation != null) {
                 loc = playerRespawnLocation;
             }
@@ -136,8 +100,8 @@ public class PlayerUtils {
         PlayerBedsData playerBedsData = null;
         AtomicInteger playerBedsCount = new AtomicInteger();
         playerBedsCount.set(0);
-        if (playerData.has(new NamespacedKey(plugin, "beds"), new BedsDataType())) {
-            playerBedsData = playerData.get(new NamespacedKey(plugin, "beds"), new BedsDataType());
+        if (playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
+            playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
             if (playerBedsData != null && playerBedsData.getPlayerBedData() != null) {
                 HashMap<String, BedData> beds = playerBedsData.getPlayerBedData();
                 World world = getPlayerRespawnLoc(p).getWorld();

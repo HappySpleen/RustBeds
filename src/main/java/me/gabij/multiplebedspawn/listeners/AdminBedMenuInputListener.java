@@ -3,12 +3,11 @@ package me.gabij.multiplebedspawn.listeners;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.models.BedData;
-import me.gabij.multiplebedspawn.models.BedsDataType;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
+import me.gabij.multiplebedspawn.utils.PluginKeys;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -51,37 +50,36 @@ public class AdminBedMenuInputListener implements Listener {
 
     private void handleRenameInput(Player admin, RenamePrompt prompt, String input) {
         if (input.equalsIgnoreCase("cancel")) {
-            admin.sendMessage(ChatColor.YELLOW + message("rename-prompt-cancelled", "Renaming cancelled."));
+            admin.sendMessage(ChatColor.YELLOW + plugin.message("rename-prompt-cancelled", "Renaming cancelled."));
             AdminBedsMenuHandler.openActionMenu(admin, prompt.ownerId(), prompt.returnPage(), prompt.bedUuid());
             return;
         }
 
         if (input.isBlank()) {
-            admin.sendMessage(ChatColor.RED + message("rename-prompt-empty", "Bed name cannot be empty."));
+            admin.sendMessage(ChatColor.RED + plugin.message("rename-prompt-empty", "Bed name cannot be empty."));
             AdminBedsMenuHandler.openActionMenu(admin, prompt.ownerId(), prompt.returnPage(), prompt.bedUuid());
             return;
         }
 
         Player owner = Bukkit.getPlayer(prompt.ownerId());
         if (owner == null) {
-            admin.sendMessage(ChatColor.RED + message("admin-beds-owner-offline",
+            admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-owner-offline",
                     "That player is no longer online."));
             AdminBedsMenuHandler.openOwnerMenu(admin, 0);
             return;
         }
 
         PersistentDataContainer ownerData = owner.getPersistentDataContainer();
-        NamespacedKey bedsKey = new NamespacedKey(plugin, "beds");
-        if (!ownerData.has(bedsKey, new BedsDataType())) {
-            admin.sendMessage(ChatColor.RED + message("bed-not-registered-message",
+        if (!ownerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
                     "That player has no registered beds."));
             AdminBedsMenuHandler.openOwnerMenu(admin, 0);
             return;
         }
 
-        PlayerBedsData playerBedsData = ownerData.get(bedsKey, new BedsDataType());
+        PlayerBedsData playerBedsData = ownerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
-            admin.sendMessage(ChatColor.RED + message("bed-not-registered-message",
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
                     "That player has no registered beds."));
             AdminBedsMenuHandler.openOwnerMenu(admin, 0);
             return;
@@ -89,26 +87,18 @@ public class AdminBedMenuInputListener implements Listener {
 
         BedData bedData = playerBedsData.getPlayerBedData().get(prompt.bedUuid());
         if (bedData == null) {
-            admin.sendMessage(ChatColor.RED + message("bed-not-registered-message",
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
                     "That player no longer has that bed saved."));
             AdminBedsMenuHandler.openOwnerBedsMenu(admin, prompt.ownerId(), prompt.returnPage());
             return;
         }
 
         bedData.setBedName(input);
-        ownerData.set(bedsKey, new BedsDataType(), playerBedsData);
-        admin.sendMessage(ChatColor.YELLOW + message("admin-beds-rename-success", "Renamed {1}'s bed to {2}.")
+        ownerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
+        admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-rename-success", "Renamed {1}'s bed to {2}.")
                 .replace("{1}", owner.getName())
                 .replace("{2}", input));
         AdminBedsMenuHandler.openActionMenu(admin, prompt.ownerId(), prompt.returnPage(), prompt.bedUuid());
-    }
-
-    private String message(String key, String fallback) {
-        String value = plugin.getMessages(key);
-        if (value == null || value.isBlank()) {
-            value = fallback;
-        }
-        return ChatColor.translateAlternateColorCodes('&', value);
     }
 
     private record RenamePrompt(UUID ownerId, String bedUuid, int returnPage) {

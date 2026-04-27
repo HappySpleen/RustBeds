@@ -31,7 +31,6 @@ public class PlayerGetsOnBedListener implements Listener {
 
     @EventHandler
     public void onPlayerGetOnBed(PlayerBedEnterEvent e) {
-
         Player player = e.getPlayer();
         String world = player.getWorld().getName();
         List<String> denylist = plugin.getConfig().getStringList("denylist");
@@ -69,9 +68,12 @@ public class PlayerGetsOnBedListener implements Listener {
                     } else {
                         randomUUID = UUID.fromString(
                                 container.get(new NamespacedKey(plugin, "uuid"), PersistentDataType.STRING));
-                        if ((playerBedsData == null
-                                || (playerBedsData != null && !playerBedsData.hasBed(randomUUID.toString())))
-                                && plugin.getConfig().getBoolean("exclusive-bed")) {
+                        boolean alreadyRegisteredByPlayer = playerBedsData != null
+                                && playerBedsData.hasBed(randomUUID.toString());
+                        if (!alreadyRegisteredByPlayer
+                                && plugin.getConfig().getBoolean("exclusive-bed")
+                                && plugin.getBedOwnershipStore()
+                                        .hasOwnerOtherThan(randomUUID.toString(), player.getUniqueId())) {
                             player.sendMessage(ChatColor.RED + plugin.getMessages("bed-already-has-owner"));
                             return;
                         }
@@ -104,8 +106,6 @@ public class PlayerGetsOnBedListener implements Listener {
             } else {
                 player.sendMessage(ChatColor.RED + plugin.getMessages("max-beds-message"));
             }
-            player.setBedSpawnLocation(null);
-            e.setCancelled(plugin.getConfig().getBoolean("disable-sleeping"));
         }
     }
 

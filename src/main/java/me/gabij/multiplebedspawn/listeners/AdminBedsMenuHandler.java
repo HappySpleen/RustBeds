@@ -720,13 +720,18 @@ public class AdminBedsMenuHandler implements Listener {
 
     private static List<String> buildBedLore(BedMenuEntry entry) {
         List<String> lore = new ArrayList<>();
+        boolean hasMetadata = false;
         if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
             lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
+            hasMetadata = true;
         }
         if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
             lore.add(ChatColor.GRAY + formatCoords(entry.bedData()));
+            hasMetadata = true;
         }
-        lore.add("");
+        if (hasMetadata) {
+            lore.add("");
+        }
         switch (entry.status()) {
             case AVAILABLE -> lore.add(ChatColor.YELLOW + message("manage-menu-click-manage",
                     "Click to manage this bed."));

@@ -16,5 +16,7 @@ permissions:
   multiplebedspawn.admin:
     description: Allows administrators to manage other players' saved beds
     default: op
-
+  multiplebedspawn.reload:
+    description: Allows administrators to reload the plugin configuration
+    default: op
 

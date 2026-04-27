@@ -97,6 +97,16 @@ public class BedOwnershipStore {
         return !getOwners(bedUuid).isEmpty();
     }
 
+    public synchronized boolean hasOwnerOtherThan(String bedUuid, UUID playerId) {
+        String playerIdValue = playerId.toString();
+        for (String value : data.getStringList(ownerPath(bedUuid))) {
+            if (!value.equalsIgnoreCase(playerIdValue)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public synchronized void clearOwners(String bedUuid) {
         if (!data.contains(ownerPath(bedUuid))) {
             return;

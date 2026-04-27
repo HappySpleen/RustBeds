@@ -2,7 +2,6 @@ package me.gabij.multiplebedspawn;
 
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
-import me.gabij.multiplebedspawn.commands.AdminBedsCommand;
 import me.gabij.multiplebedspawn.commands.RespawnMenuCommand;
 import me.gabij.multiplebedspawn.listeners.*;
 import me.gabij.multiplebedspawn.utils.BedOwnershipStore;
@@ -44,10 +43,8 @@ public final class MultipleBedSpawn extends JavaPlugin {
 
         this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
-            commands.register(RespawnMenuCommand.LABEL, RespawnMenuCommand.DESCRIPTION, List.of("respawnbed"),
-                    new RespawnMenuCommand());
-            commands.register(AdminBedsCommand.LABEL, AdminBedsCommand.DESCRIPTION, List.of("bedadmin", "bedsadmin"),
-                    new AdminBedsCommand());
+            commands.register(RespawnMenuCommand.LABEL, RespawnMenuCommand.DESCRIPTION, List.of(),
+                    new RespawnMenuCommand(this));
         });
 
         this.getLogger().info("Commands registered with Paper lifecycle manager");
@@ -64,6 +61,13 @@ public final class MultipleBedSpawn extends JavaPlugin {
     // get message of selected language
     public String getMessages(String path) {
         return this.messages.getString(path);
+    }
+
+    public void reloadPluginSettings() {
+        reloadConfig();
+        getConfig().options().copyDefaults(true);
+        saveConfig();
+        createLanguageConfig();
     }
 
     private void createLanguageConfig() {

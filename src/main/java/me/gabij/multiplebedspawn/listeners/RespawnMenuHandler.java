@@ -465,7 +465,9 @@ public class RespawnMenuHandler implements Listener {
                 entry.status() != BedStatus.MISSING,
                 message("bed-action-rename", "Rename bed"),
                 message("bed-action-rename-lore", "Rename this saved bed.")));
-        inventory.setItem(ACTION_SHARE_SLOT, createShareActionItem(entry));
+        if (plugin.getConfig().getBoolean("bed-sharing")) {
+            inventory.setItem(ACTION_SHARE_SLOT, createShareActionItem(entry));
+        }
         inventory.setItem(ACTION_BACK_SLOT, createControlItem(Material.ARROW,
                 ChatColor.YELLOW + message("bed-action-back", "Back to beds"), List.of()));
         inventory.setItem(ACTION_REMOVE_SLOT, createActionItem(Material.BARRIER, true,
@@ -537,13 +539,18 @@ public class RespawnMenuHandler implements Listener {
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
 
         List<String> lore = new ArrayList<>();
+        boolean hasMetadata = false;
         if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
             lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
+            hasMetadata = true;
         }
         if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
             lore.add(ChatColor.GRAY + formatCoords(entry.bedData()));
+            hasMetadata = true;
         }
-        lore.add("");
+        if (hasMetadata) {
+            lore.add("");
+        }
         switch (entry.status()) {
             case AVAILABLE -> lore.add(ChatColor.GREEN + message("bed-action-ready", "Ready to manage."));
             case COOLDOWN -> lore.add(ChatColor.GOLD + message("respawn-menu-bed-cooldown", "Available in {1}s.")
@@ -557,12 +564,6 @@ public class RespawnMenuHandler implements Listener {
     }
 
     private static ItemStack createShareActionItem(BedMenuEntry entry) {
-        if (!plugin.getConfig().getBoolean("bed-sharing")) {
-            return createActionItem(Material.GRAY_DYE, false,
-                    message("bed-action-share-disabled", "Sharing disabled"),
-                    message("bed-action-share-disabled-lore", "Enable bed-sharing in the config to use this action."));
-        }
-
         if (entry.status() == BedStatus.MISSING) {
             return createActionItem(Material.GRAY_DYE, false,
                     message("bed-action-share", "Share bed"),
@@ -766,13 +767,18 @@ public class RespawnMenuHandler implements Listener {
 
     private static List<String> buildBedLore(BedMenuEntry entry, boolean respawnMode) {
         List<String> lore = new ArrayList<>();
+        boolean hasMetadata = false;
         if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
             lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
+            hasMetadata = true;
         }
         if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
             lore.add(ChatColor.GRAY + formatCoords(entry.bedData()));
+            hasMetadata = true;
         }
-        lore.add("");
+        if (hasMetadata) {
+            lore.add("");
+        }
 
         if (respawnMode) {
             switch (entry.status()) {

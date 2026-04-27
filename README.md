@@ -11,7 +11,7 @@ When a player dies, if they have at least one bed, a respawn menu appears so the
 
 A player can set a bed by right clicking it.
 
-And rename it with the command ```/renamebed 'the name they want'``` while looking at the bed.
+A player can open ```/beds``` at any time to rename, share, or remove saved beds.
 
 ![image](https://user-images.githubusercontent.com/69057368/210019366-3a981d52-79a2-4bfd-9217-0aac37918243.png)
 
@@ -23,8 +23,6 @@ The plugin has a lot of options
 
 <strong>max-beds</strong> - The maximum number of beds a player can have.
 
-<strong>disable-sleeping</strong> - If players can sleep or not (if set to true, player will not be able to lie in bed).
-
 <strong>bed-cooldown</strong> - The amount of time, in seconds, players have to wait before respawning in the same bed.
 
 You can select which worlds the plugin will run. Choosing between allowlist or denylist (you can use both, but it does not make sense).
@@ -32,23 +30,20 @@ Leave empty to work in every world.
 
 <strong>denylist</strong> - List of world where the plugin will not work.
 
-<strong>allowlist</strong> - List of world where the plugin will not work.
+<strong>allowlist</strong> - List of worlds where the plugin will work.
 
 <strong>link-worlds</strong> - If true, players can choose beds from all worlds.
 <br>If false, players can only choose beds from the current world.
 
-<strong>remove-beds-gui</strong> - If true, enables the command ```/removebed``` that opens a gui so the player can remove registered beds.  
-<br>If false, the command does nothing and player can only remove registered beds breaking them.
+<strong>disable-bed-world-desc</strong> - If true, saved bed items in the current UI will not show the bed's world.
 
-<strong>disable-bed-world-desc</strong> - If true, the bed item inside the respawn menu and remove menu will not show the bed's world.
-
-<strong>disable-bed-coords-desc</strong> - If true, the bed item inside the respawn menu and remove menu will not show the bed's coordinates.
+<strong>disable-bed-coords-desc</strong> - If true, saved bed items in the current UI will not show the bed's coordinates.
 
 <strong>spawn-on-sky</strong> - If true, players will spawn flying in the sky.
 
 <strong>exclusive-bed</strong> - If true, beds will allow only one registered player.
 
-<strong>bed-sharing</strong> - If true, players will be able to do `/sharebed <player>` and give the bed that they are looking to another player.
+<strong>bed-sharing</strong> - If true, players can share a saved bed with another online player from the ```/beds``` menu.
 
 <strong>command-on-spawn</strong> - Command to run when player clicks the SPAWN block, leave empty to disable.
 
@@ -59,6 +54,10 @@ Leave empty to work in every world.
 <strong>multiplebedspawn.skipcooldown</strong> - Allow players to skip bed cool-down.
 
 <strong>multiplebedspawn.maxcount.{num}</strong> - Allow players to have custom maximum bed amount. Change '{num}' with the number you want to be the max number of beds a player with this permission can have (ignores config.yml setting).
+
+<strong>multiplebedspawn.admin</strong> - Allow administrators to use ```/beds admin``` to manage other players' saved beds.
+
+<strong>multiplebedspawn.reload</strong> - Allow administrators to use ```/beds reload``` to reload settings from ```config.yml``` without restarting the server.
 
 
 # Help needed

@@ -6,12 +6,12 @@ lang: "enUS"
 # Maximum number of saved beds per player.
 # Hard-capped to 53 by the plugin.
 # Players with multiplebedspawn.maxcount.<num> can override this per permission.
-max-beds: 5
+max-beds: 15
 
 # Cooldown in seconds before the same saved bed can be used again.
 # Set to 0 to disable the cooldown.
 # Ignored for players with multiplebedspawn.skipcooldown.
-bed-cooldown: 30
+bed-cooldown: 120
 
 # World filters for where the plugin is active.
 # Leave both empty to allow the plugin in every world it supports.
@@ -43,15 +43,15 @@ respawn-menu-open-delay-ticks: 2
 # How long the respawn menu stays open before the plugin auto-respawns the player.
 # On timeout, it tries the player's primary bed first, then falls back to normal spawn.
 # 0 does not disable the timeout; the code clamps this to at least 1 tick.
-respawn-menu-timeout-seconds: 15
+respawn-menu-timeout-seconds: 30
 
 # If true, a player cannot register a bed that is already owned by someone else.
 # Useful for survival servers where each physical bed should belong to one player.
-exclusive-bed: false
+exclusive-bed: true
 
 # If true, the manage menu adds a share action so players can share a saved bed
 # with another online player.
-bed-sharing: false
+bed-sharing: true
 
 # Command to run after the plugin sends the player to their default respawn path.
 # Leave empty to disable.

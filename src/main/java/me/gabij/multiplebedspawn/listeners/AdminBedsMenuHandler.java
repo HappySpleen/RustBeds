@@ -65,7 +65,7 @@ public class AdminBedsMenuHandler implements Listener {
             return;
         }
 
-        List<Player> owners = getOwnerCandidates(admin);
+        List<Player> owners = getOwnerCandidates();
         int totalPages = Math.max(1, (int) Math.ceil(owners.size() / (double) PAGE_SIZE));
         int page = Math.max(0, Math.min(requestedPage, totalPages - 1));
 
@@ -631,10 +631,10 @@ public class AdminBedsMenuHandler implements Listener {
         return playerBedsData.getPlayerBedData().size();
     }
 
-    private static List<Player> getOwnerCandidates(Player admin) {
+    private static List<Player> getOwnerCandidates() {
         List<Player> owners = new ArrayList<>();
         Bukkit.getOnlinePlayers().forEach(player -> {
-            if (!player.getUniqueId().equals(admin.getUniqueId()) && getSavedBedCount(player) > 0) {
+            if (getSavedBedCount(player) > 0) {
                 owners.add(player);
             }
         });

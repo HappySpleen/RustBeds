@@ -31,7 +31,7 @@ public class BedsUtils {
             return null;
         }
 
-        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
+        PlayerBedsData playerBedsData = PlayerUtils.loadPlayerBedsData(p);
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             return null;
         }

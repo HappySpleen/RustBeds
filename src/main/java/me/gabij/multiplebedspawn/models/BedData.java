@@ -19,6 +19,7 @@ public class BedData implements Serializable {
     private String bedSpawnCoords;
     private String bedWorld;
     private long bedCooldown = 0;
+    private boolean primary;
 
     public BedData(Block bed, Player p) {
         this.bedMaterial = bed.getType();
@@ -87,6 +88,14 @@ public class BedData implements Serializable {
 
     public void setBedCooldown(long cooldown) {
         this.bedCooldown = cooldown;
+    }
+
+    public boolean isPrimary() {
+        return primary;
+    }
+
+    public void setPrimary(boolean primary) {
+        this.primary = primary;
     }
 
     private Location locationFromString(String locationString) {

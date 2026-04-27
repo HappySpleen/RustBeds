@@ -95,39 +95,48 @@ public class PlayerUtils {
         return loc;
     }
 
-    public static Integer getPlayerBedsCount(Player p) {
+    public static PlayerBedsData loadPlayerBedsData(Player p) {
         PersistentDataContainer playerData = p.getPersistentDataContainer();
-        PlayerBedsData playerBedsData = null;
+        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
+            return null;
+        }
+
+        PlayerBedsData playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
+        if (playerBedsData != null && playerBedsData.normalizePrimaryBeds()) {
+            playerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
+        }
+
+        return playerBedsData;
+    }
+
+    public static Integer getPlayerBedsCount(Player p) {
         AtomicInteger playerBedsCount = new AtomicInteger();
         playerBedsCount.set(0);
-        if (playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
-            if (playerBedsData != null && playerBedsData.getPlayerBedData() != null) {
-                HashMap<String, BedData> beds = playerBedsData.getPlayerBedData();
-                World world = getPlayerRespawnLoc(p).getWorld();
-                String worldName = world.getName();
-                if (!plugin.getConfig().getBoolean("link-worlds")) {
-                    HashMap<String, BedData> bedsT = (HashMap<String, BedData>) beds.clone();
-                    beds.forEach((uuid, bedData) -> {
-                        // clear lists so beds are only from the world that player will respawn
-                        if (!bedData.getBedWorld().equalsIgnoreCase(worldName)) {
-                            bedsT.remove(uuid);
-                        }
-                    });
-                    beds = bedsT;
-                }
-                playerBedsCount.set(beds.size());
+        PlayerBedsData playerBedsData = loadPlayerBedsData(p);
+        if (playerBedsData != null && playerBedsData.getPlayerBedData() != null) {
+            HashMap<String, BedData> beds = playerBedsData.getPlayerBedData();
+            World world = getPlayerRespawnLoc(p).getWorld();
+            String worldName = world.getName();
+            if (!plugin.getConfig().getBoolean("link-worlds")) {
+                HashMap<String, BedData> bedsT = (HashMap<String, BedData>) beds.clone();
                 beds.forEach((uuid, bedData) -> {
-                    String[] location = bedData.getBedCoords().split(":");
-                    String bedWorld = bedData.getBedWorld();
-                    Location bedLoc = new Location(Bukkit.getWorld(bedWorld), Double.parseDouble(location[0]),
-                            Double.parseDouble(location[1]), Double.parseDouble(location[2]));
-                    if (!checksIfBedExists(bedLoc, p, uuid)) {
-                        playerBedsCount.addAndGet(-1);
+                    // clear lists so beds are only from the world that player will respawn
+                    if (!bedData.getBedWorld().equalsIgnoreCase(worldName)) {
+                        bedsT.remove(uuid);
                     }
                 });
-
+                beds = bedsT;
             }
+            playerBedsCount.set(beds.size());
+            beds.forEach((uuid, bedData) -> {
+                String[] location = bedData.getBedCoords().split(":");
+                String bedWorld = bedData.getBedWorld();
+                Location bedLoc = new Location(Bukkit.getWorld(bedWorld), Double.parseDouble(location[0]),
+                        Double.parseDouble(location[1]), Double.parseDouble(location[2]));
+                if (!checksIfBedExists(bedLoc, p, uuid)) {
+                    playerBedsCount.addAndGet(-1);
+                }
+            });
         }
         return playerBedsCount.get();
     }

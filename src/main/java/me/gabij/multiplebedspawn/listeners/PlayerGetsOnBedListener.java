@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static me.gabij.multiplebedspawn.utils.BedsUtils.getMaxNumberOfBeds;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.getPlayerBedsCount;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
 
 public class PlayerGetsOnBedListener implements Listener {
 
@@ -46,9 +47,7 @@ public class PlayerGetsOnBedListener implements Listener {
 
         int playerBedsCount = getPlayerBedsCount(player);
 
-        if (playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            playerBedsData = playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
-        }
+        playerBedsData = loadPlayerBedsData(player);
 
         if (playerBedsCount < maxBeds) {
             UUID randomUUID = UUID.randomUUID();

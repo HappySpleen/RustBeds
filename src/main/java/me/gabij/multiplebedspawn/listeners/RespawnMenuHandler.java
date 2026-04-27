@@ -37,6 +37,7 @@ import java.util.UUID;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.isRegisteredBedPresent;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.removePlayerBed;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.getPlayerRespawnLoc;
+import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.setPropPlayer;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.undoPropPlayer;
 import static me.gabij.multiplebedspawn.utils.RunCommandUtils.runCommandOnSpawn;
@@ -54,6 +55,7 @@ public class RespawnMenuHandler implements Listener {
     private static final int NEXT_PAGE_SLOT = 53;
 
     private static final int ACTION_RENAME_SLOT = 10;
+    private static final int ACTION_PRIMARY_SLOT = 12;
     private static final int ACTION_PREVIEW_SLOT = 13;
     private static final int ACTION_SHARE_SLOT = 16;
     private static final int ACTION_BACK_SLOT = 18;
@@ -263,6 +265,20 @@ public class RespawnMenuHandler implements Listener {
                         "Type the new bed name in chat. Type 'cancel' to abort."));
                 player.closeInventory();
             }
+            case ACTION_PRIMARY_SLOT -> {
+                if (entry.status() == BedStatus.MISSING || entry.bedData().isPrimary()) {
+                    return;
+                }
+
+                if (!setPrimaryBed(player, bedUuid)) {
+                    openManageMenu(player, holder.getPage());
+                    return;
+                }
+
+                player.sendMessage(ChatColor.YELLOW + plugin.message("bed-primary-set-successfully-message",
+                        "Primary bed set successfully!"));
+                showManageActionMenu(player, holder.getPage(), bedUuid);
+            }
             case ACTION_SHARE_SLOT -> {
                 if (!plugin.getConfig().getBoolean("bed-sharing") || entry.status() == BedStatus.MISSING) {
                     return;
@@ -465,6 +481,7 @@ public class RespawnMenuHandler implements Listener {
                 entry.status() != BedStatus.MISSING,
                 plugin.message("bed-action-rename", "Rename bed"),
                 plugin.message("bed-action-rename-lore", "Rename this saved bed.")));
+        inventory.setItem(ACTION_PRIMARY_SLOT, createPrimaryActionItem(entry));
         if (plugin.getConfig().getBoolean("bed-sharing")) {
             inventory.setItem(ACTION_SHARE_SLOT, createShareActionItem(entry));
         }
@@ -511,7 +528,7 @@ public class RespawnMenuHandler implements Listener {
     }
 
     private static ItemStack createBedListItem(BedMenuEntry entry, SessionMode mode) {
-        Material material = entry.status() == BedStatus.MISSING ? Material.BARRIER : entry.bedData().getBedMaterial();
+        Material material = getBedDisplayMaterial(entry);
         ItemStack item = new ItemStack(material, 1);
         ItemMeta meta = item.getItemMeta();
 
@@ -532,22 +549,14 @@ public class RespawnMenuHandler implements Listener {
     }
 
     private static ItemStack createBedPreviewItem(BedMenuEntry entry) {
-        Material material = entry.status() == BedStatus.MISSING ? Material.BARRIER : entry.bedData().getBedMaterial();
+        Material material = getBedDisplayMaterial(entry);
         ItemStack item = new ItemStack(material, 1);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(ChatColor.YELLOW + entry.displayName());
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
 
         List<String> lore = new ArrayList<>();
-        boolean hasMetadata = false;
-        if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
-            lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
-            hasMetadata = true;
-        }
-        if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-            lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
-            hasMetadata = true;
-        }
+        boolean hasMetadata = appendBedMetadataLore(lore, entry);
         if (hasMetadata) {
             lore.add("");
         }
@@ -561,6 +570,23 @@ public class RespawnMenuHandler implements Listener {
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+
+    private static ItemStack createPrimaryActionItem(BedMenuEntry entry) {
+        if (entry.status() == BedStatus.MISSING) {
+            return createActionItem(Material.GRAY_DYE, false,
+                    plugin.message("bed-action-primary", "Set primary"),
+                    plugin.message("bed-action-unavailable-lore", "This action is unavailable for missing beds."));
+        }
+        if (entry.bedData().isPrimary()) {
+            return createActionItem(Material.GRAY_DYE, false,
+                    plugin.message("bed-action-primary-selected", "Primary bed"),
+                    plugin.message("bed-action-primary-selected-lore", "This is already your primary bed."));
+        }
+
+        return createActionItem(Material.NETHER_STAR, true,
+                plugin.message("bed-action-primary", "Set primary"),
+                plugin.message("bed-action-primary-lore", "Make this your primary bed."));
     }
 
     private static ItemStack createShareActionItem(BedMenuEntry entry) {
@@ -605,6 +631,27 @@ public class RespawnMenuHandler implements Listener {
         }
         item.setItemMeta(meta);
         return item;
+    }
+
+    private static Material getBedDisplayMaterial(BedMenuEntry entry) {
+        return switch (entry.status()) {
+            case COOLDOWN -> Material.CLOCK;
+            case MISSING -> Material.BARRIER;
+            case AVAILABLE -> entry.bedData().getBedMaterial();
+        };
+    }
+
+    private static boolean setPrimaryBed(Player player, String uuid) {
+        PlayerBedsData playerBedsData = getPlayerBedsData(player);
+        if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
+            return false;
+        }
+        if (!playerBedsData.setPrimaryBed(uuid)) {
+            return false;
+        }
+
+        player.getPersistentDataContainer().set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
+        return true;
     }
 
     private static void teleportToSavedBed(Player player, PlayerBedsData playerBedsData, String uuid) {
@@ -655,6 +702,27 @@ public class RespawnMenuHandler implements Listener {
         });
     }
 
+    private static boolean tryRespawnAtPrimaryBed(Player player) {
+        PlayerBedsData playerBedsData = getPlayerBedsData(player);
+        if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
+            return false;
+        }
+
+        for (BedMenuEntry entry : getMenuEntries(player)) {
+            if (!entry.bedData().isPrimary()) {
+                continue;
+            }
+            if (entry.status() != BedStatus.AVAILABLE) {
+                return false;
+            }
+
+            teleportToSavedBed(player, playerBedsData, entry.uuid());
+            return true;
+        }
+
+        return false;
+    }
+
     private static boolean shareBed(Player owner, Player receiver, String bedUuid) {
         PlayerBedsData ownerBedsData = getPlayerBedsData(owner);
         if (ownerBedsData == null || ownerBedsData.getPlayerBedData() == null || !ownerBedsData.hasBed(bedUuid)) {
@@ -682,11 +750,7 @@ public class RespawnMenuHandler implements Listener {
     }
 
     private static PlayerBedsData getPlayerBedsData(Player player) {
-        PersistentDataContainer playerData = player.getPersistentDataContainer();
-        if (!playerData.has(PluginKeys.beds(), PluginKeys.bedsDataType())) {
-            return null;
-        }
-        return playerData.get(PluginKeys.beds(), PluginKeys.bedsDataType());
+        return loadPlayerBedsData(player);
     }
 
     private static List<BedMenuEntry> getMenuEntries(Player player) {
@@ -708,7 +772,9 @@ public class RespawnMenuHandler implements Listener {
         }
             sortedBeds.removeIf(entry -> !entry.getValue().getBedWorld().equalsIgnoreCase(respawnWorld.getName()));
         }
-        sortedBeds.sort(Comparator.comparing(entry -> entry.getValue().getSortKey(), String.CASE_INSENSITIVE_ORDER));
+        sortedBeds.sort(Comparator.comparing((Map.Entry<String, BedData> entry) -> entry.getValue().isPrimary())
+                .reversed()
+                .thenComparing(entry -> entry.getValue().getSortKey(), String.CASE_INSENSITIVE_ORDER));
 
         List<BedMenuEntry> entries = new ArrayList<>();
         int index = 1;
@@ -758,15 +824,7 @@ public class RespawnMenuHandler implements Listener {
 
     private static List<String> buildBedLore(BedMenuEntry entry, boolean respawnMode) {
         List<String> lore = new ArrayList<>();
-        boolean hasMetadata = false;
-        if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
-            lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
-            hasMetadata = true;
-        }
-        if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-            lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
-            hasMetadata = true;
-        }
+        boolean hasMetadata = appendBedMetadataLore(lore, entry);
         if (hasMetadata) {
             lore.add("");
         }
@@ -801,6 +859,23 @@ public class RespawnMenuHandler implements Listener {
         return lore;
     }
 
+    private static boolean appendBedMetadataLore(List<String> lore, BedMenuEntry entry) {
+        boolean hasMetadata = false;
+        if (entry.bedData().isPrimary()) {
+            lore.add(ChatColor.AQUA + plugin.message("bed-primary-label", "Primary bed"));
+            hasMetadata = true;
+        }
+        if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
+            lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
+            hasMetadata = true;
+        }
+        if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
+            lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
+            hasMetadata = true;
+        }
+        return hasMetadata;
+    }
+
     private static boolean hasCooldownEntries(List<BedMenuEntry> entries) {
         for (BedMenuEntry entry : entries) {
             if (entry.status() == BedStatus.COOLDOWN) {
@@ -832,7 +907,9 @@ public class RespawnMenuHandler implements Listener {
     private static void scheduleRespawnTimeout(Player player, BedMenuSession session) {
         session.setTimeoutTaskId(Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (ACTIVE_SESSIONS.get(player.getUniqueId()) == session) {
-                sendPlayerToDefaultRespawn(player, true);
+                if (!tryRespawnAtPrimaryBed(player)) {
+                    sendPlayerToDefaultRespawn(player, true);
+                }
             }
         }, Math.max(1L, plugin.getConfig().getLong("respawn-menu-timeout-seconds") * 20L)).getTaskId());
     }

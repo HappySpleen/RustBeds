@@ -30,7 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static me.gabij.multiplebedspawn.utils.BedsUtils.isRegisteredBedPresent;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.getRespawnAnchorCharges;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.getRespawnAnchorMaxCharges;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.isRegisteredRespawnPointPresent;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.removePlayerBed;
 
 public class AdminBedsMenuHandler implements Listener {
@@ -509,12 +511,12 @@ public class AdminBedsMenuHandler implements Listener {
     }
 
     private static ItemStack createBedListItem(BedMenuEntry entry) {
-        Material material = entry.status() == BedStatus.MISSING ? Material.BARRIER : entry.bedData().getBedMaterial();
-        ItemStack item = new ItemStack(material, 1);
+        Material material = entry.status() == BedStatus.AVAILABLE ? entry.bedData().getBedMaterial() : Material.BARRIER;
+        ItemStack item = new ItemStack(material, getDisplayAmount(entry));
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(switch (entry.status()) {
             case AVAILABLE -> ChatColor.GREEN + entry.displayName();
-            case MISSING -> ChatColor.RED + entry.displayName();
+            case DEPLETED, MISSING -> ChatColor.RED + entry.displayName();
         });
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.setLore(buildBedLore(entry));
@@ -524,8 +526,8 @@ public class AdminBedsMenuHandler implements Listener {
     }
 
     private static ItemStack createBedPreviewItem(Player owner, BedMenuEntry entry) {
-        Material material = entry.status() == BedStatus.MISSING ? Material.BARRIER : entry.bedData().getBedMaterial();
-        ItemStack item = new ItemStack(material, 1);
+        Material material = entry.status() == BedStatus.AVAILABLE ? entry.bedData().getBedMaterial() : Material.BARRIER;
+        ItemStack item = new ItemStack(material, getDisplayAmount(entry));
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(ChatColor.YELLOW + entry.displayName());
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
@@ -538,9 +540,16 @@ public class AdminBedsMenuHandler implements Listener {
         if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
             lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
         }
+        if (entry.bedData().isRespawnAnchor()) {
+            lore.add(ChatColor.GOLD + plugin.message("respawn-anchor-charges", "Charges: {1}/{2}")
+                    .replace("{1}", Integer.toString(entry.currentCharges()))
+                    .replace("{2}", Integer.toString(entry.maxCharges())));
+        }
         lore.add("");
         switch (entry.status()) {
             case AVAILABLE -> lore.add(ChatColor.GREEN + plugin.message("bed-action-ready", "Ready to manage."));
+            case DEPLETED -> lore.add(ChatColor.RED + plugin.message("respawn-anchor-depleted",
+                    "This respawn anchor has no charges."));
             case MISSING -> lore.add(ChatColor.RED
                     + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
         }
@@ -673,9 +682,13 @@ public class AdminBedsMenuHandler implements Listener {
             BedData bedData = entry.getValue();
             String displayName = bedData.hasCustomName()
                     ? bedData.getBedName()
-                    : plugin.message("default-bed-name", "Bed {1}").replace("{1}", Integer.toString(index));
+                    : plugin.message(bedData.isRespawnAnchor() ? "default-anchor-name" : "default-bed-name",
+                            bedData.isRespawnAnchor() ? "Respawn Anchor {1}" : "Bed {1}")
+                    .replace("{1}", Integer.toString(index));
             BedStatus status = resolveStatus(entry.getKey(), bedData);
-            entries.add(new BedMenuEntry(entry.getKey(), bedData, displayName, status));
+            int currentCharges = bedData.isRespawnAnchor() ? getRespawnAnchorCharges(bedData) : 0;
+            int maxCharges = bedData.isRespawnAnchor() ? getRespawnAnchorMaxCharges(bedData) : 0;
+            entries.add(new BedMenuEntry(entry.getKey(), bedData, displayName, status, currentCharges, maxCharges));
             index++;
         }
         return entries;
@@ -691,9 +704,11 @@ public class AdminBedsMenuHandler implements Listener {
     }
 
     private static BedStatus resolveStatus(String uuid, BedData bedData) {
-        Location bedLocation = bedData.getBedLocation();
-        if (bedLocation == null || !isRegisteredBedPresent(bedLocation, uuid)) {
+        if (!isRegisteredRespawnPointPresent(bedData, uuid)) {
             return BedStatus.MISSING;
+        }
+        if (bedData.isRespawnAnchor() && getRespawnAnchorCharges(bedData) <= 0) {
+            return BedStatus.DEPLETED;
         }
         return BedStatus.AVAILABLE;
     }
@@ -713,16 +728,35 @@ public class AdminBedsMenuHandler implements Listener {
             lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
             hasMetadata = true;
         }
+        if (entry.bedData().isRespawnAnchor()) {
+            lore.add(ChatColor.GOLD + plugin.message("respawn-anchor-charges", "Charges: {1}/{2}")
+                    .replace("{1}", Integer.toString(entry.currentCharges()))
+                    .replace("{2}", Integer.toString(entry.maxCharges())));
+            hasMetadata = true;
+        }
         if (hasMetadata) {
             lore.add("");
         }
         switch (entry.status()) {
             case AVAILABLE -> lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage",
                     "Click to manage this bed."));
+            case DEPLETED -> {
+                lore.add(ChatColor.RED + plugin.message("respawn-anchor-depleted",
+                        "This respawn anchor has no charges."));
+                lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage", "Click to manage this bed."));
+            }
             case MISSING -> lore.add(ChatColor.RED + plugin.message("respawn-menu-bed-missing",
                     "This bed no longer exists."));
         }
         return lore;
+    }
+
+    private static int getDisplayAmount(BedMenuEntry entry) {
+        if (entry.bedData().isRespawnAnchor() && entry.status() == BedStatus.AVAILABLE) {
+            return Math.max(1, Math.min(64, entry.currentCharges()));
+        }
+
+        return 1;
     }
 
     private static String getStringData(ItemStack clickedItem, String key) {
@@ -783,9 +817,11 @@ public class AdminBedsMenuHandler implements Listener {
 
     private enum BedStatus {
         AVAILABLE,
+        DEPLETED,
         MISSING
     }
 
-    private record BedMenuEntry(String uuid, BedData bedData, String displayName, BedStatus status) {
+    private record BedMenuEntry(String uuid, BedData bedData, String displayName, BedStatus status,
+                                int currentCharges, int maxCharges) {
     }
 }

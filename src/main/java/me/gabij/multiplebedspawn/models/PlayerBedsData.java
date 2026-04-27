@@ -16,16 +16,26 @@ public class PlayerBedsData implements Serializable {
     }
 
     public PlayerBedsData(Player p, Block bed, String bedUUID) {
-        setNewBed(p, bed, bedUUID);
+        setNewRespawnPoint(p, bed, bedUUID);
     }
 
     public void setNewBed(Player p, Block bed, String bedUUID) {
+        setNewRespawnPoint(p, bed, bedUUID, BedData.RespawnPointType.BED);
+    }
+
+    public void setNewRespawnPoint(Player p, Block block, String uuid) {
+        setNewRespawnPoint(p, block, uuid, block.getType() == org.bukkit.Material.RESPAWN_ANCHOR
+                ? BedData.RespawnPointType.ANCHOR
+                : BedData.RespawnPointType.BED);
+    }
+
+    public void setNewRespawnPoint(Player p, Block block, String uuid, BedData.RespawnPointType respawnPointType) {
         normalizePrimaryBeds();
-        BedData tempBedData = new BedData(bed, p);
+        BedData tempBedData = new BedData(block, p, respawnPointType);
         if (!hasPrimaryBed()) {
             tempBedData.setPrimary(true);
         }
-        this.bedData.put(bedUUID, tempBedData);
+        this.bedData.put(uuid, tempBedData);
     }
 
     public void shareBed(PlayerBedsData receiverPlayerBedsData, String bedUUID) {

@@ -53,6 +53,11 @@ exclusive-bed: true
 # with another online player.
 bed-sharing: true
 
+# If true, players can save and respawn at respawn anchors in the Nether.
+# Anchor charges are shown in the UI, anchors consume one charge per respawn,
+# and anchors with zero charges become unusable until recharged.
+respawn-anchors-enabled: true
+
 # Command to run after the plugin sends the player to their default respawn path.
 # Leave empty to disable.
 # Use the raw command name without a leading slash.

@@ -5,6 +5,7 @@ import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import me.gabij.multiplebedspawn.commands.RespawnMenuCommand;
 import me.gabij.multiplebedspawn.listeners.*;
 import me.gabij.multiplebedspawn.utils.BedOwnershipStore;
+import me.gabij.multiplebedspawn.utils.RespawnAnchorStore;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -19,6 +20,7 @@ public final class MultipleBedSpawn extends JavaPlugin {
 
     private Configuration messages;
     private BedOwnershipStore bedOwnershipStore;
+    private RespawnAnchorStore respawnAnchorStore;
 
     private static MultipleBedSpawn instance;
 
@@ -30,6 +32,7 @@ public final class MultipleBedSpawn extends JavaPlugin {
         saveConfig();
         createLanguageConfig();
         bedOwnershipStore = new BedOwnershipStore(this);
+        respawnAnchorStore = new RespawnAnchorStore(this);
 
         getServer().getPluginManager().registerEvents(new PlayerRespawnListener(this), this);
         getServer().getPluginManager().registerEvents(new RespawnMenuHandler(this), this);
@@ -38,6 +41,7 @@ public final class MultipleBedSpawn extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new AdminBedMenuInputListener(this), this);
         getServer().getPluginManager().registerEvents(new BedDestroyedListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerGetsOnBedListener(this), this);
+        getServer().getPluginManager().registerEvents(new RespawnAnchorListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerSetSpawnListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         Bukkit.getOnlinePlayers().forEach(bedOwnershipStore::syncPlayerBeds);
@@ -57,6 +61,10 @@ public final class MultipleBedSpawn extends JavaPlugin {
 
     public BedOwnershipStore getBedOwnershipStore() {
         return bedOwnershipStore;
+    }
+
+    public RespawnAnchorStore getRespawnAnchorStore() {
+        return respawnAnchorStore;
     }
 
     // get message of selected language
@@ -83,6 +91,8 @@ public final class MultipleBedSpawn extends JavaPlugin {
         getConfig().options().copyDefaults(true);
         saveConfig();
         createLanguageConfig();
+        bedOwnershipStore.reload();
+        respawnAnchorStore.reload();
     }
 
     private void createLanguageConfig() {

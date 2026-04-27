@@ -25,7 +25,8 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
-import static me.gabij.multiplebedspawn.utils.BedsUtils.checkIfIsBed;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.checkIfIsRespawnPoint;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.getRespawnPointUuid;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.removePlayerBed;
 
 public class BedDestroyedListener implements Listener {
@@ -58,7 +59,7 @@ public class BedDestroyedListener implements Listener {
     private void handleDestroyedBlocks(Collection<Block> blocks) {
         Set<String> destroyedBeds = new LinkedHashSet<>();
         for (Block block : blocks) {
-            Block bed = checkIfIsBed(block);
+            Block bed = checkIfIsRespawnPoint(block);
             if (bed == null) {
                 continue;
             }
@@ -98,6 +99,9 @@ public class BedDestroyedListener implements Listener {
         }
 
         plugin.getBedOwnershipStore().clearOwners(bedUuid);
+        if (bed.getType() == org.bukkit.Material.RESPAWN_ANCHOR) {
+            plugin.getRespawnAnchorStore().clearAnchor(bed.getLocation());
+        }
     }
 
     private boolean playerHasBed(Player player, String bedUuid) {
@@ -113,28 +117,29 @@ public class BedDestroyedListener implements Listener {
     }
 
     private String getBedUuid(Block bed) {
-        BlockState blockState = bed.getState();
-        if (!(blockState instanceof TileState tileState)) {
-            return null;
-        }
-
-        PersistentDataContainer container = tileState.getPersistentDataContainer();
-        return container.get(PluginKeys.uuid(), PersistentDataType.STRING);
+        return getRespawnPointUuid(bed);
     }
 
     private String buildDestroyedMessage(BedData bedData, Location location) {
         if (bedData.hasCustomName()) {
-            return ChatColor.RED + plugin.message("bed-destroyed-message",
-                    "Your saved bed {1} was destroyed and removed.").replace("{1}", bedData.getBedName());
+            return ChatColor.RED + plugin.message(
+                    bedData.isRespawnAnchor() ? "anchor-destroyed-message" : "bed-destroyed-message",
+                    bedData.isRespawnAnchor()
+                            ? "Your saved respawn anchor {1} was destroyed and removed."
+                            : "Your saved bed {1} was destroyed and removed.")
+                    .replace("{1}", bedData.getBedName());
         }
 
-        return buildLocationDestroyedMessage(location);
+        return buildLocationDestroyedMessage(location, bedData.isRespawnAnchor());
     }
 
-    private String buildLocationDestroyedMessage(Location location) {
+    private String buildLocationDestroyedMessage(Location location, boolean respawnAnchor) {
         String worldName = location.getWorld() == null ? "unknown" : location.getWorld().getName();
-        return ChatColor.RED + plugin.message("bed-destroyed-message-location",
-                "Your saved bed at {1} in {2} was destroyed and removed.")
+        return ChatColor.RED + plugin.message(
+                respawnAnchor ? "anchor-destroyed-message-location" : "bed-destroyed-message-location",
+                respawnAnchor
+                        ? "Your saved respawn anchor at {1} in {2} was destroyed and removed."
+                        : "Your saved bed at {1} in {2} was destroyed and removed.")
                 .replace("{1}", formatCoords(location))
                 .replace("{2}", worldName);
     }

@@ -53,12 +53,19 @@ public class PlayerJoinListener implements Listener {
 
     private String buildDestroyedMessage(BedData bedData) {
         if (bedData.hasCustomName()) {
-            return ChatColor.RED + plugin.message("bed-destroyed-message",
-                    "Your saved bed {1} was destroyed and removed.").replace("{1}", bedData.getBedName());
+            return ChatColor.RED + plugin.message(
+                    bedData.isRespawnAnchor() ? "anchor-destroyed-message" : "bed-destroyed-message",
+                    bedData.isRespawnAnchor()
+                            ? "Your saved respawn anchor {1} was destroyed and removed."
+                            : "Your saved bed {1} was destroyed and removed.")
+                    .replace("{1}", bedData.getBedName());
         }
 
-        return ChatColor.RED + plugin.message("bed-destroyed-message-location",
-                "Your saved bed at {1} in {2} was destroyed and removed.")
+        return ChatColor.RED + plugin.message(
+                bedData.isRespawnAnchor() ? "anchor-destroyed-message-location" : "bed-destroyed-message-location",
+                bedData.isRespawnAnchor()
+                        ? "Your saved respawn anchor at {1} in {2} was destroyed and removed."
+                        : "Your saved bed at {1} in {2} was destroyed and removed.")
                 .replace("{1}", bedData.formatCoords())
                 .replace("{2}", bedData.getBedWorld());
     }

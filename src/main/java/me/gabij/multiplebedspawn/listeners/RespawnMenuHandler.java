@@ -34,7 +34,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static me.gabij.multiplebedspawn.utils.BedsUtils.isRegisteredBedPresent;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.consumeRespawnAnchorCharge;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.getRespawnAnchorCharges;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.getRespawnAnchorMaxCharges;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.isRegisteredRespawnPointPresent;
 import static me.gabij.multiplebedspawn.utils.BedsUtils.removePlayerBed;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.getPlayerRespawnLoc;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
@@ -204,8 +207,7 @@ public class RespawnMenuHandler implements Listener {
                 }
 
                 BedData bedData = playerBedsData.getPlayerBedData().get(uuid);
-                Location bedLocation = bedData == null ? null : bedData.getBedLocation();
-                if (bedLocation == null || !isRegisteredBedPresent(bedLocation, uuid)) {
+                if (bedData == null || !isRegisteredRespawnPointPresent(bedData, uuid)) {
                     showListMenu(player, holder.getPage());
                     return;
                 }
@@ -266,7 +268,9 @@ public class RespawnMenuHandler implements Listener {
                 player.closeInventory();
             }
             case ACTION_PRIMARY_SLOT -> {
-                if (entry.status() == BedStatus.MISSING || entry.bedData().isPrimary()) {
+                if (entry.status() == BedStatus.MISSING
+                        || entry.status() == BedStatus.DISABLED
+                        || entry.bedData().isPrimary()) {
                     return;
                 }
 
@@ -364,7 +368,7 @@ public class RespawnMenuHandler implements Listener {
 
         renderListMenu(inventory, entries, page, totalPages, session.getMode());
         session.setListPage(page);
-        syncRefreshTask(player, session, hasCooldownEntries(entries));
+        syncRefreshTask(player, session, hasDynamicEntries(entries));
         player.openInventory(inventory);
     }
 
@@ -529,13 +533,13 @@ public class RespawnMenuHandler implements Listener {
 
     private static ItemStack createBedListItem(BedMenuEntry entry, SessionMode mode) {
         Material material = getBedDisplayMaterial(entry);
-        ItemStack item = new ItemStack(material, 1);
+        ItemStack item = new ItemStack(material, getDisplayAmount(entry));
         ItemMeta meta = item.getItemMeta();
 
         meta.setDisplayName(switch (entry.status()) {
             case AVAILABLE -> ChatColor.GREEN + entry.displayName();
             case COOLDOWN -> ChatColor.GOLD + entry.displayName();
-            case MISSING -> ChatColor.RED + entry.displayName();
+            case DEPLETED, DISABLED, MISSING -> ChatColor.RED + entry.displayName();
         });
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.setLore(buildBedLore(entry, mode == SessionMode.RESPAWN));
@@ -550,7 +554,7 @@ public class RespawnMenuHandler implements Listener {
 
     private static ItemStack createBedPreviewItem(BedMenuEntry entry) {
         Material material = getBedDisplayMaterial(entry);
-        ItemStack item = new ItemStack(material, 1);
+        ItemStack item = new ItemStack(material, getDisplayAmount(entry));
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(ChatColor.YELLOW + entry.displayName());
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
@@ -564,6 +568,10 @@ public class RespawnMenuHandler implements Listener {
             case AVAILABLE -> lore.add(ChatColor.GREEN + plugin.message("bed-action-ready", "Ready to manage."));
             case COOLDOWN -> lore.add(ChatColor.GOLD + plugin.message("respawn-menu-bed-cooldown", "Available in {1}s.")
                     .replace("{1}", Long.toString(entry.remainingCooldownSeconds())));
+            case DEPLETED -> lore.add(ChatColor.RED + plugin.message("respawn-anchor-depleted",
+                    "This respawn anchor has no charges."));
+            case DISABLED -> lore.add(ChatColor.RED + plugin.message("respawn-anchor-disabled",
+                    "Respawn anchors are disabled in config."));
             case MISSING -> lore.add(ChatColor.RED
                     + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
         }
@@ -573,10 +581,10 @@ public class RespawnMenuHandler implements Listener {
     }
 
     private static ItemStack createPrimaryActionItem(BedMenuEntry entry) {
-        if (entry.status() == BedStatus.MISSING) {
+        if (entry.status() == BedStatus.MISSING || entry.status() == BedStatus.DISABLED) {
             return createActionItem(Material.GRAY_DYE, false,
                     plugin.message("bed-action-primary", "Set primary"),
-                    plugin.message("bed-action-unavailable-lore", "This action is unavailable for missing beds."));
+                    plugin.message("bed-action-unavailable-lore", "This action is unavailable for this respawn point."));
         }
         if (entry.bedData().isPrimary()) {
             return createActionItem(Material.GRAY_DYE, false,
@@ -636,9 +644,17 @@ public class RespawnMenuHandler implements Listener {
     private static Material getBedDisplayMaterial(BedMenuEntry entry) {
         return switch (entry.status()) {
             case COOLDOWN -> Material.CLOCK;
-            case MISSING -> Material.BARRIER;
+            case DEPLETED, DISABLED, MISSING -> Material.BARRIER;
             case AVAILABLE -> entry.bedData().getBedMaterial();
         };
+    }
+
+    private static int getDisplayAmount(BedMenuEntry entry) {
+        if (entry.bedData().isRespawnAnchor() && entry.status() == BedStatus.AVAILABLE) {
+            return Math.max(1, Math.min(64, entry.currentCharges()));
+        }
+
+        return 1;
     }
 
     private static boolean setPrimaryBed(Player player, String uuid) {
@@ -670,7 +686,7 @@ public class RespawnMenuHandler implements Listener {
         cancelSession(player.getUniqueId());
 
         PersistentDataContainer playerData = player.getPersistentDataContainer();
-        if (!player.hasPermission("multiplebedspawn.skipcooldown")) {
+        if (bedData.usesCooldown() && !player.hasPermission("multiplebedspawn.skipcooldown")) {
             bedData.setBedCooldown(System.currentTimeMillis() + (plugin.getConfig().getLong("bed-cooldown") * 1000L));
         }
         playerData.set(PluginKeys.beds(), PluginKeys.bedsDataType(), playerBedsData);
@@ -679,6 +695,11 @@ public class RespawnMenuHandler implements Listener {
         undoPropPlayer(player);
         if (!teleport(player, respawnLocation)) {
             Bukkit.getScheduler().runTask(plugin, () -> sendPlayerToDefaultRespawn(player, false));
+            return;
+        }
+
+        if (bedData.isRespawnAnchor()) {
+            consumeRespawnAnchorCharge(bedData);
         }
     }
 
@@ -782,10 +803,15 @@ public class RespawnMenuHandler implements Listener {
             BedData bedData = entry.getValue();
             String displayName = bedData.hasCustomName()
                     ? bedData.getBedName()
-                    : plugin.message("default-bed-name", "Bed {1}").replace("{1}", Integer.toString(index));
+                    : plugin.message(bedData.isRespawnAnchor() ? "default-anchor-name" : "default-bed-name",
+                            bedData.isRespawnAnchor() ? "Respawn Anchor {1}" : "Bed {1}")
+                    .replace("{1}", Integer.toString(index));
             BedStatus status = resolveStatus(player, entry.getKey(), bedData);
             long remainingSeconds = Math.max(0L, (bedData.getBedCooldown() - System.currentTimeMillis() + 999L) / 1000L);
-            entries.add(new BedMenuEntry(entry.getKey(), bedData, displayName, status, remainingSeconds));
+            int currentCharges = bedData.isRespawnAnchor() ? getRespawnAnchorCharges(bedData) : 0;
+            int maxCharges = bedData.isRespawnAnchor() ? getRespawnAnchorMaxCharges(bedData) : 0;
+            entries.add(new BedMenuEntry(entry.getKey(), bedData, displayName, status, remainingSeconds,
+                    currentCharges, maxCharges));
             index++;
         }
         return entries;
@@ -801,9 +827,17 @@ public class RespawnMenuHandler implements Listener {
     }
 
     private static BedStatus resolveStatus(Player player, String uuid, BedData bedData) {
-        Location bedLocation = bedData.getBedLocation();
-        if (bedLocation == null || !isRegisteredBedPresent(bedLocation, uuid)) {
+        if (!isRegisteredRespawnPointPresent(bedData, uuid)) {
             return BedStatus.MISSING;
+        }
+        if (bedData.isRespawnAnchor()) {
+            if (!plugin.getConfig().getBoolean("respawn-anchors-enabled")) {
+                return BedStatus.DISABLED;
+            }
+            if (getRespawnAnchorCharges(bedData) <= 0) {
+                return BedStatus.DEPLETED;
+            }
+            return BedStatus.AVAILABLE;
         }
         if (!player.hasPermission("multiplebedspawn.skipcooldown") && bedData.getBedCooldown() > System.currentTimeMillis()) {
             return BedStatus.COOLDOWN;
@@ -836,6 +870,10 @@ public class RespawnMenuHandler implements Listener {
                 case COOLDOWN -> lore.add(ChatColor.RED
                         + plugin.message("respawn-menu-bed-cooldown", "Available in {1}s.")
                                 .replace("{1}", Long.toString(entry.remainingCooldownSeconds())));
+                case DEPLETED -> lore.add(ChatColor.RED
+                        + plugin.message("respawn-anchor-depleted", "This respawn anchor has no charges."));
+                case DISABLED -> lore.add(ChatColor.RED
+                        + plugin.message("respawn-anchor-disabled", "Respawn anchors are disabled in config."));
                 case MISSING -> lore.add(ChatColor.RED
                         + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
             }
@@ -847,6 +885,16 @@ public class RespawnMenuHandler implements Listener {
                     lore.add(ChatColor.GOLD
                             + plugin.message("respawn-menu-bed-cooldown", "Available in {1}s.")
                                     .replace("{1}", Long.toString(entry.remainingCooldownSeconds())));
+                    lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage", "Click to manage this bed."));
+                }
+                case DEPLETED -> {
+                    lore.add(ChatColor.RED
+                            + plugin.message("respawn-anchor-depleted", "This respawn anchor has no charges."));
+                    lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage", "Click to manage this bed."));
+                }
+                case DISABLED -> {
+                    lore.add(ChatColor.RED
+                            + plugin.message("respawn-anchor-disabled", "Respawn anchors are disabled in config."));
                     lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage", "Click to manage this bed."));
                 }
                 case MISSING -> {
@@ -873,12 +921,18 @@ public class RespawnMenuHandler implements Listener {
             lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
             hasMetadata = true;
         }
+        if (entry.bedData().isRespawnAnchor()) {
+            lore.add(ChatColor.GOLD + plugin.message("respawn-anchor-charges", "Charges: {1}/{2}")
+                    .replace("{1}", Integer.toString(entry.currentCharges()))
+                    .replace("{2}", Integer.toString(entry.maxCharges())));
+            hasMetadata = true;
+        }
         return hasMetadata;
     }
 
-    private static boolean hasCooldownEntries(List<BedMenuEntry> entries) {
+    private static boolean hasDynamicEntries(List<BedMenuEntry> entries) {
         for (BedMenuEntry entry : entries) {
-            if (entry.status() == BedStatus.COOLDOWN) {
+            if (entry.status() == BedStatus.COOLDOWN || entry.bedData().isRespawnAnchor()) {
                 return true;
             }
         }
@@ -914,8 +968,8 @@ public class RespawnMenuHandler implements Listener {
         }, Math.max(1L, plugin.getConfig().getLong("respawn-menu-timeout-seconds") * 20L)).getTaskId());
     }
 
-    private static void syncRefreshTask(Player player, BedMenuSession session, boolean hasCooldownEntries) {
-        if (!hasCooldownEntries) {
+    private static void syncRefreshTask(Player player, BedMenuSession session, boolean hasDynamicEntries) {
+        if (!hasDynamicEntries) {
             session.cancelRefreshTask();
             return;
         }
@@ -957,7 +1011,7 @@ public class RespawnMenuHandler implements Listener {
         }
 
         renderListMenu(inventory, entries, page, totalPages, session.getMode());
-        syncRefreshTask(player, session, hasCooldownEntries(entries));
+        syncRefreshTask(player, session, hasDynamicEntries(entries));
     }
 
     private static boolean isRespawnProtected(Player player) {
@@ -1013,11 +1067,13 @@ public class RespawnMenuHandler implements Listener {
     private enum BedStatus {
         AVAILABLE,
         COOLDOWN,
+        DEPLETED,
+        DISABLED,
         MISSING
     }
 
     private record BedMenuEntry(String uuid, BedData bedData, String displayName, BedStatus status,
-                                long remainingCooldownSeconds) {
+                                long remainingCooldownSeconds, int currentCharges, int maxCharges) {
     }
 
     private static final class BedMenuSession {

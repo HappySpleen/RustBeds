@@ -13,6 +13,7 @@ import java.io.Serializable;
 public class BedData implements Serializable {
     private static final long serialVersionUID = -4751385549566406619L;
 
+    private RespawnPointType respawnPointType;
     private String bedName;
     private Material bedMaterial;
     private String bedCoords;
@@ -22,6 +23,11 @@ public class BedData implements Serializable {
     private boolean primary;
 
     public BedData(Block bed, Player p) {
+        this(bed, p, resolveType(bed));
+    }
+
+    public BedData(Block bed, Player p, RespawnPointType respawnPointType) {
+        this.respawnPointType = respawnPointType;
         this.bedMaterial = bed.getType();
         this.bedCoords = locationToString(bed.getLocation());
         this.bedSpawnCoords = locationToString(p.getLocation());
@@ -42,6 +48,18 @@ public class BedData implements Serializable {
 
     public Material getBedMaterial() {
         return bedMaterial;
+    }
+
+    public RespawnPointType getRespawnPointType() {
+        return respawnPointType == null ? RespawnPointType.BED : respawnPointType;
+    }
+
+    public boolean isRespawnAnchor() {
+        return getRespawnPointType() == RespawnPointType.ANCHOR;
+    }
+
+    public boolean usesCooldown() {
+        return getRespawnPointType() == RespawnPointType.BED;
     }
 
     public String getBedCoords() {
@@ -113,4 +131,12 @@ public class BedData implements Serializable {
         return Integer.toString((int) Math.floor(Double.parseDouble(coordinate)));
     }
 
+    private static RespawnPointType resolveType(Block block) {
+        return block.getType() == Material.RESPAWN_ANCHOR ? RespawnPointType.ANCHOR : RespawnPointType.BED;
+    }
+
+    public enum RespawnPointType {
+        BED,
+        ANCHOR
+    }
 }

@@ -26,7 +26,11 @@ public class PlayerRespawnListener implements Listener {
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent e) {
         World world = e.getRespawnLocation().getWorld();
-        if (world.getEnvironment() == Environment.NETHER || world.getEnvironment() == Environment.THE_END) {
+        if (world.getEnvironment() == Environment.THE_END) {
+            return;
+        }
+        if (world.getEnvironment() == Environment.NETHER
+                && !plugin.getConfig().getBoolean("respawn-anchors-enabled")) {
             return;
         }
         if (e.getRespawnReason() == RespawnReason.PLUGIN) {
@@ -42,7 +46,7 @@ public class PlayerRespawnListener implements Listener {
         Location defaultRespawn = e.getRespawnLocation().clone();
         playerData.set(PluginKeys.spawnLoc(), PersistentDataType.STRING, locationToString(defaultRespawn));
 
-        if (plugin.getConfig().getBoolean("spawn-on-sky")) {
+        if (plugin.getConfig().getBoolean("spawn-on-sky") && world.getEnvironment() == Environment.NORMAL) {
             Location skyRespawn = defaultRespawn.clone();
             skyRespawn.setY(Math.min(world.getMaxHeight() - 1, defaultRespawn.getY() + 300));
             e.setRespawnLocation(skyRespawn);

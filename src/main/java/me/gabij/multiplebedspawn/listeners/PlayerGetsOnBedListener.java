@@ -5,18 +5,16 @@ import me.gabij.multiplebedspawn.models.PlayerBedsData;
 import me.gabij.multiplebedspawn.utils.PluginKeys;
 import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.TileState;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerBedEnterEvent;
 import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.UUID;
 
 import static me.gabij.multiplebedspawn.utils.BedsUtils.getMaxNumberOfBeds;
+import static me.gabij.multiplebedspawn.utils.BedsUtils.getOrCreateRespawnPointUuid;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.getPlayerBedsCount;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.loadPlayerBedsData;
 
@@ -51,28 +49,21 @@ public class PlayerGetsOnBedListener implements Listener {
 
         if (playerBedsCount < maxBeds) {
             UUID randomUUID = UUID.randomUUID();
-            BlockState blockState = bed.getState();
+            String savedUuid = getOrCreateRespawnPointUuid(bed, randomUUID.toString());
+            if (savedUuid == null) {
+                return;
+            }
+            randomUUID = UUID.fromString(savedUuid);
 
-            if (blockState instanceof TileState tileState) { // sets a randomUUID to the bed if the bed doesnt have it or get the bed uuid
-                PersistentDataContainer container = tileState.getPersistentDataContainer();
-
-                if (!container.has(PluginKeys.uuid(), PersistentDataType.STRING)) {
-                    container.set(PluginKeys.uuid(), PersistentDataType.STRING, randomUUID.toString());
-                } else {
-                    randomUUID = UUID.fromString(container.get(PluginKeys.uuid(), PersistentDataType.STRING));
-                    boolean alreadyRegisteredByPlayer = playerBedsData != null
-                            && playerBedsData.hasBed(randomUUID.toString());
-                    if (!alreadyRegisteredByPlayer
-                            && plugin.getConfig().getBoolean("exclusive-bed")
-                            && plugin.getBedOwnershipStore()
-                                    .hasOwnerOtherThan(randomUUID.toString(), player.getUniqueId())) {
-                        player.sendMessage(ChatColor.RED + plugin.message("bed-already-has-owner",
-                                "This bed already belongs to another player."));
-                        return;
-                    }
-                }
-
-                tileState.update();
+            boolean alreadyRegisteredByPlayer = playerBedsData != null
+                    && playerBedsData.hasBed(randomUUID.toString());
+            if (!alreadyRegisteredByPlayer
+                    && plugin.getConfig().getBoolean("exclusive-bed")
+                    && plugin.getBedOwnershipStore()
+                            .hasOwnerOtherThan(randomUUID.toString(), player.getUniqueId())) {
+                player.sendMessage(ChatColor.RED + plugin.message("bed-already-has-owner",
+                        "This bed already belongs to another player."));
+                return;
             }
 
             boolean registerBed = false;

@@ -1,6 +1,7 @@
 package me.gabij.multiplebedspawn.listeners;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
+import me.gabij.multiplebedspawn.models.BedData;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
 import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
@@ -79,8 +80,7 @@ public class PlayerGetsOnBedListener implements Listener {
 
             if (registerBed) {
                 savePlayerBedsData(player, playerBedsData);
-                player.sendMessage(plugin.message("bed-registered-successfully-message",
-                        "Bed registered successfully!"));
+                player.sendMessage(plugin.registrationSuccessMessage(BedData.RespawnPointType.BED));
             }
 
         } else {

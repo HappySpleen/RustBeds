@@ -527,6 +527,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         List<String> lore = new ArrayList<>();
         lore.add(formatOwnerLoreName(owner));
+        appendSharedByLore(lore, entry);
         if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
             lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
         }
@@ -711,6 +712,11 @@ public class AdminBedsMenuHandler implements Listener {
     private static List<String> buildBedLore(BedMenuEntry entry) {
         List<String> lore = new ArrayList<>();
         boolean hasMetadata = false;
+        if (entry.bedData().hasSharedByName()) {
+            lore.add(ChatColor.BLUE + plugin.message("bed-shared-by-label", "Shared By: {1}")
+                    .replace("{1}", entry.bedData().getSharedByName()));
+            hasMetadata = true;
+        }
         if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
             lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
             hasMetadata = true;
@@ -787,6 +793,15 @@ public class AdminBedsMenuHandler implements Listener {
 
     private static String formatOwnerBedLabel(OfflinePlayer owner, BedMenuEntry entry) {
         return formatOwnerLoreName(owner) + ChatColor.GRAY + ": " + ChatColor.YELLOW + entry.displayName();
+    }
+
+    private static void appendSharedByLore(List<String> lore, BedMenuEntry entry) {
+        if (!entry.bedData().hasSharedByName()) {
+            return;
+        }
+
+        lore.add(ChatColor.BLUE + plugin.message("bed-shared-by-label", "Shared By: {1}")
+                .replace("{1}", entry.bedData().getSharedByName()));
     }
 
     private static String getStringData(ItemStack clickedItem, String key) {

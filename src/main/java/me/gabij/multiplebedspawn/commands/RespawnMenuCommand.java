@@ -58,8 +58,6 @@ public class RespawnMenuCommand implements BasicCommand {
         List<String> suggestions = new java.util.ArrayList<>();
         if (sender.hasPermission("multiplebedspawn.admin")) {
             suggestions.add("admin");
-        }
-        if (sender.hasPermission("multiplebedspawn.reload")) {
             suggestions.add("reload");
         }
 
@@ -85,7 +83,7 @@ public class RespawnMenuCommand implements BasicCommand {
     }
 
     private void handleReloadCommand(CommandSender sender) {
-        if (!sender.hasPermission("multiplebedspawn.reload")) {
+        if (!sender.hasPermission("multiplebedspawn.admin")) {
             sender.sendMessage(ChatColor.RED + plugin.message("beds-reload-no-permission",
                     "You do not have permission to reload this plugin."));
             return;

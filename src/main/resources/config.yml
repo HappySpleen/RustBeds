@@ -1,3 +1,7 @@
+# Version marker for the shipped config layout.
+# The plugin updates this when new config defaults or migrations are introduced.
+config-version: 1
+
 # Language file to load from src/main/resources/languages.
 # Falls back to enUS if the selected file is missing.
 # Current bundled options include: enUS, deDE, esES, frFR, ptBR, ruRU, svSE, zhCH.

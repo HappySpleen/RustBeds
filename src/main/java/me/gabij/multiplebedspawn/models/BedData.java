@@ -21,6 +21,7 @@ public class BedData implements Serializable {
     private String bedWorld;
     private long bedCooldown = 0;
     private boolean primary;
+    private String sharedByName;
 
     public BedData(Block bed, Player p) {
         this(bed, p, resolveType(bed));
@@ -36,6 +37,11 @@ public class BedData implements Serializable {
 
     public BedData(RespawnPointType respawnPointType, String bedName, Material bedMaterial, String bedCoords,
                    String bedSpawnCoords, String bedWorld, long bedCooldown, boolean primary) {
+        this(respawnPointType, bedName, bedMaterial, bedCoords, bedSpawnCoords, bedWorld, bedCooldown, primary, null);
+    }
+
+    public BedData(RespawnPointType respawnPointType, String bedName, Material bedMaterial, String bedCoords,
+                   String bedSpawnCoords, String bedWorld, long bedCooldown, boolean primary, String sharedByName) {
         this.respawnPointType = respawnPointType;
         this.bedName = bedName;
         this.bedMaterial = bedMaterial;
@@ -44,6 +50,7 @@ public class BedData implements Serializable {
         this.bedWorld = bedWorld;
         this.bedCooldown = bedCooldown;
         this.primary = primary;
+        this.sharedByName = normalizeSharedByName(sharedByName);
     }
 
     public String getBedName() {
@@ -128,6 +135,28 @@ public class BedData implements Serializable {
         this.primary = primary;
     }
 
+    public String getSharedByName() {
+        return sharedByName;
+    }
+
+    public boolean hasSharedByName() {
+        return sharedByName != null && !sharedByName.isBlank();
+    }
+
+    public void setSharedByName(String sharedByName) {
+        this.sharedByName = normalizeSharedByName(sharedByName);
+    }
+
+    public void prepareForShare(String sharedByName) {
+        bedName = null;
+        setSharedByName(sharedByName);
+    }
+
+    public BedData copy() {
+        return new BedData(getRespawnPointType(), bedName, bedMaterial, bedCoords, bedSpawnCoords, bedWorld,
+                bedCooldown, primary, sharedByName);
+    }
+
     private Location locationFromString(String locationString) {
         World world = Bukkit.getWorld(bedWorld);
         if (world == null) {
@@ -145,6 +174,15 @@ public class BedData implements Serializable {
 
     private static RespawnPointType resolveType(Block block) {
         return block.getType() == Material.RESPAWN_ANCHOR ? RespawnPointType.ANCHOR : RespawnPointType.BED;
+    }
+
+    private String normalizeSharedByName(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     public enum RespawnPointType {

@@ -80,8 +80,7 @@ public class BedMenuInputListener implements Listener {
 
         bedData.setBedName(input);
         savePlayerBedsData(player, playerBedsData);
-        player.sendMessage(plugin.message("bed-name-registered-successfully-message",
-                "Bed name registered successfully!"));
+        player.sendMessage(plugin.renameSuccessMessage(bedData.getRespawnPointType()));
         RespawnMenuHandler.openManageMenu(player, prompt.returnPage());
     }
 

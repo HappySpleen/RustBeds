@@ -86,7 +86,7 @@ public class PlayerBedStore implements AutoCloseable {
 
         PlayerBedsData playerBedsData = new PlayerBedsData();
         String sql = "SELECT bed_uuid, respawn_point_type, bed_name, bed_material, bed_coords, "
-                + "bed_spawn_coords, bed_world, bed_cooldown, is_primary "
+                + "bed_spawn_coords, bed_world, bed_cooldown, is_primary, shared_by_name "
                 + "FROM player_beds WHERE player_uuid = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, playerId.toString());
@@ -103,7 +103,8 @@ public class PlayerBedStore implements AutoCloseable {
                             resultSet.getString("bed_spawn_coords"),
                             resultSet.getString("bed_world"),
                             resultSet.getLong("bed_cooldown"),
-                            resultSet.getInt("is_primary") == 1
+                            resultSet.getInt("is_primary") == 1,
+                            resultSet.getString("shared_by_name")
                     );
                     playerBedsData.getPlayerBedData().put(bedUuid, bedData);
                 }
@@ -145,8 +146,8 @@ public class PlayerBedStore implements AutoCloseable {
             if (normalizedData != null && normalizedData.getPlayerBedData() != null
                     && !normalizedData.getPlayerBedData().isEmpty()) {
                 String insertSql = "INSERT INTO player_beds (player_uuid, bed_uuid, respawn_point_type, bed_name, "
-                        + "bed_material, bed_coords, bed_spawn_coords, bed_world, bed_cooldown, is_primary) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "bed_material, bed_coords, bed_spawn_coords, bed_world, bed_cooldown, is_primary, "
+                        + "shared_by_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 try (PreparedStatement insertStatement = connection.prepareStatement(insertSql)) {
                     for (var entry : normalizedData.getPlayerBedData().entrySet()) {
                         BedData bedData = entry.getValue();
@@ -164,6 +165,7 @@ public class PlayerBedStore implements AutoCloseable {
                         insertStatement.setString(8, bedData.getBedWorld());
                         insertStatement.setLong(9, bedData.getBedCooldown());
                         insertStatement.setInt(10, bedData.isPrimary() ? 1 : 0);
+                        insertStatement.setString(11, bedData.getSharedByName());
                         insertStatement.addBatch();
                     }
                     insertStatement.executeBatch();
@@ -362,9 +364,11 @@ public class PlayerBedStore implements AutoCloseable {
                         bed_world TEXT NOT NULL,
                         bed_cooldown INTEGER NOT NULL DEFAULT 0,
                         is_primary INTEGER NOT NULL DEFAULT 0,
+                        shared_by_name TEXT,
                         PRIMARY KEY (player_uuid, bed_uuid)
                     )
                     """);
+            ensurePlayerBedsColumn(statement, "shared_by_name", "TEXT");
             statement.executeUpdate("CREATE INDEX IF NOT EXISTS idx_player_beds_bed_uuid ON player_beds (bed_uuid)");
             statement.executeUpdate("CREATE INDEX IF NOT EXISTS idx_player_beds_player_uuid ON player_beds (player_uuid)");
             statement.executeUpdate("""
@@ -588,5 +592,17 @@ public class PlayerBedStore implements AutoCloseable {
 
     private void logSqlWarning(String message, SQLException exception) {
         plugin.getLogger().warning(message + ": " + exception.getMessage());
+    }
+
+    private void ensurePlayerBedsColumn(Statement statement, String columnName, String columnType) throws SQLException {
+        try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(player_beds)")) {
+            while (resultSet.next()) {
+                if (columnName.equalsIgnoreCase(resultSet.getString("name"))) {
+                    return;
+                }
+            }
+        }
+
+        statement.executeUpdate("ALTER TABLE player_beds ADD COLUMN " + columnName + " " + columnType);
     }
 }

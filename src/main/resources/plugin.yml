@@ -14,9 +14,5 @@ permissions:
     description: Allows to set custom max number of beds (ignores the config)
     default: false
   multiplebedspawn.admin:
-    description: Allows administrators to manage other players' saved beds
+    description: Allows administrators to manage other players' saved beds and reload the plugin configuration
     default: op
-  multiplebedspawn.reload:
-    description: Allows administrators to reload the plugin configuration
-    default: op
-

@@ -2,6 +2,7 @@ package me.gabij.multiplebedspawn.listeners;
 
 import com.destroystokyo.paper.event.player.PlayerSetSpawnEvent;
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
+import me.gabij.multiplebedspawn.models.BedData;
 import me.gabij.multiplebedspawn.models.PlayerBedsData;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -91,7 +92,6 @@ public class PlayerSetSpawnListener implements Listener {
 
         playerBedsData.setNewRespawnPoint(player, anchor, savedUuid, me.gabij.multiplebedspawn.models.BedData.RespawnPointType.ANCHOR);
         savePlayerBedsData(player, playerBedsData);
-        player.sendMessage(ChatColor.YELLOW + plugin.message("anchor-registered-successfully-message",
-                "Respawn anchor registered successfully!"));
+        player.sendMessage(ChatColor.YELLOW + plugin.registrationSuccessMessage(BedData.RespawnPointType.ANCHOR));
     }
 }

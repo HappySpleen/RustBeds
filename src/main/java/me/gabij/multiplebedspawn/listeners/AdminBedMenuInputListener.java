@@ -82,9 +82,7 @@ public class AdminBedMenuInputListener implements Listener {
 
         bedData.setBedName(input);
         savePlayerBedsData(owner, playerBedsData);
-        admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-rename-success", "Renamed {1}'s bed to {2}.")
-                .replace("{1}", owner.getName() == null ? owner.getUniqueId().toString() : owner.getName())
-                .replace("{2}", input));
+        admin.sendMessage(ChatColor.YELLOW + plugin.renameSuccessMessage(bedData.getRespawnPointType()));
         AdminBedsMenuHandler.openActionMenu(admin, prompt.ownerId(), prompt.returnPage(), prompt.bedUuid());
     }
 

@@ -607,7 +607,7 @@ public class RespawnMenuHandler implements Listener {
 
         return createActionItem(Material.PLAYER_HEAD, true,
                 plugin.message("bed-action-share", "Share bed"),
-                plugin.message("bed-action-share-lore", "Give this saved bed to another online player."));
+                plugin.message("bed-action-share-lore", "Share this saved bed with another online player."));
     }
 
     private static ItemStack createActionItem(Material material, boolean enabled, String name, String loreLine) {
@@ -761,7 +761,12 @@ public class RespawnMenuHandler implements Listener {
             receiverBedsData = new PlayerBedsData();
         }
 
-        ownerBedsData.shareBed(receiverBedsData, bedUuid);
+        String ownerName = owner.getName();
+        if (ownerName == null || ownerName.isBlank()) {
+            ownerName = owner.getUniqueId().toString();
+        }
+
+        ownerBedsData.shareBed(receiverBedsData, bedUuid, plugin.getConfig().getBoolean("exclusive-bed"), ownerName);
         savePlayerBedsData(receiver, receiverBedsData);
         savePlayerBedsData(owner, ownerBedsData);
 
@@ -913,6 +918,11 @@ public class RespawnMenuHandler implements Listener {
         boolean hasMetadata = false;
         if (entry.bedData().isPrimary()) {
             lore.add(ChatColor.AQUA + plugin.message("bed-primary-label", "Primary bed"));
+            hasMetadata = true;
+        }
+        if (entry.bedData().hasSharedByName()) {
+            lore.add(ChatColor.BLUE + plugin.message("bed-shared-by-label", "Shared By: {1}")
+                    .replace("{1}", entry.bedData().getSharedByName()));
             hasMetadata = true;
         }
         if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {

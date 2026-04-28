@@ -38,18 +38,27 @@ public class PlayerBedsData implements Serializable {
         this.bedData.put(uuid, tempBedData);
     }
 
-    public void shareBed(PlayerBedsData receiverPlayerBedsData, String bedUUID) {
+    public void shareBed(PlayerBedsData receiverPlayerBedsData, String bedUUID, boolean transferOwnership,
+            String sharedByName) {
         normalizePrimaryBeds();
         receiverPlayerBedsData.normalizePrimaryBeds();
 
-        BedData bedToShare = bedData.remove(bedUUID);
+        BedData ownerBed = bedData.get(bedUUID);
+        if (ownerBed == null) {
+            return;
+        }
+
+        BedData bedToShare = transferOwnership ? bedData.remove(bedUUID) : ownerBed.copy();
         if (bedToShare == null) {
             return;
         }
 
+        bedToShare.prepareForShare(sharedByName);
         bedToShare.setPrimary(!receiverPlayerBedsData.hasPrimaryBed());
         receiverPlayerBedsData.bedData.put(bedUUID, bedToShare);
-        assignPrimaryIfNeeded();
+        if (transferOwnership) {
+            assignPrimaryIfNeeded();
+        }
         receiverPlayerBedsData.assignPrimaryIfNeeded();
     }
 

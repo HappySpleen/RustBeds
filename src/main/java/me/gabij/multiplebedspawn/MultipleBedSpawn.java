@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Objects;
 
 public final class MultipleBedSpawn extends JavaPlugin {
-    private static final int CURRENT_CONFIG_VERSION = 1;
+    private static final int CURRENT_CONFIG_VERSION = 2;
     private static final String CONFIG_FILE_NAME = "config.yml";
 
     private Configuration messages;
@@ -106,6 +106,10 @@ public final class MultipleBedSpawn extends JavaPlugin {
         List<String> denylist = getConfig().getStringList("denylist");
         List<String> allowlist = getConfig().getStringList("allowlist");
         return !denylist.contains(worldName) && (allowlist.contains(worldName) || allowlist.isEmpty());
+    }
+
+    public long getOfflineRespawnPointDestroyedMessageDelayTicks() {
+        return Math.max(0L, getConfig().getLong("offline-respawn-point-destroyed-message-delay-ticks", 100L));
     }
 
     public void reloadPluginSettings() {

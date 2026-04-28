@@ -2,7 +2,7 @@ package me.gabij.multiplebedspawn.listeners;
 
 import me.gabij.multiplebedspawn.MultipleBedSpawn;
 import me.gabij.multiplebedspawn.utils.PluginKeys;
-import org.bukkit.ChatColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -11,7 +11,8 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import static me.gabij.multiplebedspawn.utils.BedsUtils.removePlayerBed;
+import java.util.List;
+
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.stringToLocation;
 import static me.gabij.multiplebedspawn.utils.PlayerUtils.undoPropPlayer;
 import static me.gabij.multiplebedspawn.utils.TeleportUtils.teleport;
@@ -37,8 +38,27 @@ public class PlayerJoinListener implements Listener {
         undoPropPlayer(p);
 
         plugin.getPlayerBedStore().importLegacyBeds(p);
-        for (String message : plugin.getPlayerBedStore().consumePendingMessages(p.getUniqueId())) {
-            p.sendMessage(message);
+        List<String> pendingMessages = plugin.getPlayerBedStore().consumePendingMessages(p.getUniqueId());
+        if (pendingMessages.isEmpty()) {
+            return;
         }
+
+        Runnable sendPendingMessages = () -> {
+            if (!p.isOnline()) {
+                return;
+            }
+
+            for (String message : pendingMessages) {
+                p.sendMessage(message);
+            }
+        };
+
+        long delayTicks = plugin.getOfflineRespawnPointDestroyedMessageDelayTicks();
+        if (delayTicks <= 0L) {
+            sendPendingMessages.run();
+            return;
+        }
+
+        Bukkit.getScheduler().runTaskLater(plugin, sendPendingMessages, delayTicks);
     }
 }

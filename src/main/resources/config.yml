@@ -1,6 +1,6 @@
 # Version marker for the shipped config layout.
 # The plugin updates this when new config defaults or migrations are introduced.
-config-version: 1
+config-version: 2
 
 # Language file to load from src/main/resources/languages.
 # Falls back to enUS if the selected file is missing.
@@ -43,6 +43,11 @@ spawn-on-sky: true
 # Useful if another plugin or client timing conflicts with opening instantly.
 # Negative values behave like 0.
 respawn-menu-open-delay-ticks: 2
+
+# Delay before sending queued offline destroyed-bed or destroyed-anchor messages
+# after the owner logs in.
+# 20 ticks = 1 second. Negative values behave like 0.
+offline-respawn-point-destroyed-message-delay-ticks: 140
 
 # How long the respawn menu stays open before the plugin auto-respawns the player.
 # On timeout, it tries the player's primary bed first, then falls back to normal spawn.

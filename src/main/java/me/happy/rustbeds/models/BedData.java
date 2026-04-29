@@ -152,6 +152,11 @@ public class BedData implements Serializable {
         setSharedByName(sharedByName);
     }
 
+    public void prepareForAdminGrant() {
+        bedName = null;
+        setSharedByName(null);
+    }
+
     public BedData copy() {
         return new BedData(getRespawnPointType(), bedName, bedMaterial, bedCoords, bedSpawnCoords, bedWorld,
                 bedCooldown, primary, sharedByName);

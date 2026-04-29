@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-04-29
+
+### Fixed
+- Fixed admin **Give point** exclusivity so `exclusive-bed: true` transfers the respawn point away from the selected owner, while `exclusive-bed: false` keeps the original owner as a copy.
+
+## [1.1.1] - 2026-04-29
+
+### Fixed
+- Fixed the admin **Give point** action so admins can grant respawn points to known offline players, with offline recipient names shown in red and the received message queued for their next login.
+
+## [1.1.0] - 2026-04-29
+
+### Added
+- Added an admin **Give point** action that lets admins grant a saved respawn point to another online player without adding `Shared By` provenance.
+
 ### Fixed
 - Stopped migrated legacy configs from carrying forward the removed `disable-sleeping` and `remove-beds-gui` options.
 

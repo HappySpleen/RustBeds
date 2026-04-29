@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static me.happy.rustbeds.utils.BedsUtils.getRespawnAnchorCharges;
@@ -36,6 +37,7 @@ import static me.happy.rustbeds.utils.BedsUtils.getRespawnAnchorMaxCharges;
 import static me.happy.rustbeds.utils.BedsUtils.isRegisteredRespawnPointPresent;
 import static me.happy.rustbeds.utils.BedsUtils.removePlayerBed;
 import static me.happy.rustbeds.utils.PlayerUtils.loadPlayerBedsData;
+import static me.happy.rustbeds.utils.PlayerUtils.savePlayerBedsData;
 
 public class AdminBedsMenuHandler implements Listener {
     private static final int LIST_SIZE = 54;
@@ -52,6 +54,7 @@ public class AdminBedsMenuHandler implements Listener {
     private static final int ACTION_TELEPORT_SELF_SLOT = 12;
     private static final int ACTION_PREVIEW_SLOT = 13;
     private static final int ACTION_TELEPORT_OTHER_SLOT = 14;
+    private static final int ACTION_GRANT_SLOT = 15;
     private static final int ACTION_REMOVE_SLOT = 16;
     private static final int ACTION_BACK_SLOT = 18;
 
@@ -165,6 +168,36 @@ public class AdminBedsMenuHandler implements Listener {
         admin.openInventory(inventory);
     }
 
+    private static void openGrantTargetMenu(Player admin, UUID ownerId, String bedUuid, int returnPage,
+            int requestedPage) {
+        OfflinePlayer owner = getOwner(ownerId);
+        if (owner == null) {
+            openOwnerMenu(admin, 0);
+            return;
+        }
+
+        BedMenuEntry entry = getOwnerBedEntry(owner, bedUuid);
+        if (entry == null) {
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
+                    "That player no longer has that bed saved."));
+            openOwnerBedsMenu(admin, ownerId, returnPage);
+            return;
+        }
+
+        List<OfflinePlayer> targets = getGrantTargets(ownerId, bedUuid);
+        int totalPages = Math.max(1, (int) Math.ceil(targets.size() / (double) PAGE_SIZE));
+        int page = Math.max(0, Math.min(requestedPage, totalPages - 1));
+
+        AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(),
+                AdminBedsMenuHolder.ViewType.GRANT_TARGET_LIST, page, returnPage, ownerId, bedUuid);
+        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
+                plugin.message("admin-beds-give-title", "Give respawn point"));
+        holder.setInventory(inventory);
+
+        renderGrantTargetMenu(inventory, owner, entry, targets, page, totalPages);
+        admin.openInventory(inventory);
+    }
+
     @EventHandler
     public void onMenuClick(InventoryClickEvent event) {
         if (!(event.getView().getTopInventory().getHolder() instanceof AdminBedsMenuHolder holder)) {
@@ -187,6 +220,8 @@ public class AdminBedsMenuHandler implements Listener {
             case ACTIONS -> handleActionMenuClick(admin, event.getSlot(), holder);
             case TELEPORT_TARGET_LIST ->
                     handleTeleportTargetMenuClick(admin, event.getSlot(), event.getCurrentItem(), holder);
+            case GRANT_TARGET_LIST ->
+                    handleGrantTargetMenuClick(admin, event.getSlot(), event.getCurrentItem(), holder);
         }
     }
 
@@ -279,6 +314,13 @@ public class AdminBedsMenuHandler implements Listener {
 
                 openTeleportTargetMenu(admin, ownerId, bedUuid, holder.getPage(), 0);
             }
+            case ACTION_GRANT_SLOT -> {
+                if (entry.status() == BedStatus.MISSING) {
+                    return;
+                }
+
+                openGrantTargetMenu(admin, ownerId, bedUuid, holder.getPage(), 0);
+            }
             case ACTION_REMOVE_SLOT -> {
                 removePlayerBed(bedUuid, owner);
                 admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-remove-success",
@@ -334,6 +376,48 @@ public class AdminBedsMenuHandler implements Listener {
 
                 if (teleportPlayerToBed(admin, target, owner, entry)) {
                     openActionMenu(admin, ownerId, holder.getContextPage(), bedUuid);
+                }
+            }
+        }
+    }
+
+    private static void handleGrantTargetMenuClick(Player admin, int slot, ItemStack clickedItem,
+            AdminBedsMenuHolder holder) {
+        UUID ownerId = holder.getOwnerId();
+        String bedUuid = holder.getBedUuid();
+        if (ownerId == null || bedUuid == null) {
+            openOwnerMenu(admin, 0);
+            return;
+        }
+
+        switch (slot) {
+            case PREVIOUS_PAGE_SLOT -> openGrantTargetMenu(admin, ownerId, bedUuid, holder.getContextPage(),
+                    holder.getPage() - 1);
+            case PRIMARY_ACTION_SLOT -> openActionMenu(admin, ownerId, holder.getContextPage(), bedUuid);
+            case CLOSE_SLOT -> admin.closeInventory();
+            case NEXT_PAGE_SLOT -> openGrantTargetMenu(admin, ownerId, bedUuid, holder.getContextPage(),
+                    holder.getPage() + 1);
+            default -> {
+                UUID targetId = getUuidData(clickedItem, "admin-target");
+                if (targetId == null) {
+                    return;
+                }
+
+                OfflinePlayer owner = getOwner(ownerId);
+                OfflinePlayer target = Bukkit.getOfflinePlayer(targetId);
+                if (owner == null) {
+                    openOwnerMenu(admin, 0);
+                    return;
+                }
+
+                if (grantRespawnPointToPlayer(admin, target, owner, bedUuid)) {
+                    if (plugin.getConfig().getBoolean("exclusive-bed")) {
+                        openOwnerBedsMenu(admin, ownerId, holder.getContextPage());
+                    } else {
+                        openActionMenu(admin, ownerId, holder.getContextPage(), bedUuid);
+                    }
+                } else {
+                    openGrantTargetMenu(admin, ownerId, bedUuid, holder.getContextPage(), holder.getPage());
                 }
             }
         }
@@ -436,6 +520,11 @@ public class AdminBedsMenuHandler implements Listener {
                 entry.status() != BedStatus.MISSING,
                 plugin.message("admin-beds-teleport-other", "Teleport player to bed"),
                 plugin.message("admin-beds-teleport-other-lore", "Choose another player to teleport to this bed.")));
+        inventory.setItem(ACTION_GRANT_SLOT, createActionItem(
+                entry.status() != BedStatus.MISSING ? Material.CHEST : Material.GRAY_DYE,
+                entry.status() != BedStatus.MISSING,
+                plugin.message("admin-beds-give", "Give point"),
+                plugin.message("admin-beds-give-lore", "Choose a player to receive this respawn point.")));
         inventory.setItem(ACTION_REMOVE_SLOT, createActionItem(Material.BARRIER, true,
                 plugin.message("bed-action-remove", "Remove bed"),
                 plugin.message("bed-action-remove-lore", "Remove this bed from the saved list.")));
@@ -476,6 +565,49 @@ public class AdminBedsMenuHandler implements Listener {
                 ChatColor.YELLOW + plugin.message("bed-action-back", "Back to beds"),
                 List.of(ChatColor.GRAY + plugin.message("admin-beds-target-back-lore",
                         "Return to the selected bed actions."))));
+        inventory.setItem(CLOSE_SLOT, createControlItem(Material.BARRIER,
+                ChatColor.RED + plugin.message("manage-menu-close", "Close menu"),
+                List.of(ChatColor.GRAY + plugin.message("manage-menu-close-lore", "Close the beds management menu."))));
+
+        if (page < totalPages - 1) {
+            inventory.setItem(NEXT_PAGE_SLOT, createControlItem(Material.ARROW,
+                    ChatColor.YELLOW + plugin.message("respawn-menu-next", "Next page"), List.of()));
+        }
+    }
+
+    private static void renderGrantTargetMenu(Inventory inventory, OfflinePlayer owner, BedMenuEntry entry,
+            List<OfflinePlayer> targets, int page, int totalPages) {
+        inventory.clear();
+        fillBottomRow(inventory);
+
+        int startIndex = page * PAGE_SIZE;
+        int endIndex = Math.min(startIndex + PAGE_SIZE, targets.size());
+        for (int slot = 0; slot + startIndex < endIndex; slot++) {
+            inventory.setItem(slot, createGrantTargetItem(targets.get(startIndex + slot)));
+        }
+
+        if (page > 0) {
+            inventory.setItem(PREVIOUS_PAGE_SLOT, createControlItem(Material.ARROW,
+                    ChatColor.YELLOW + plugin.message("respawn-menu-previous", "Previous page"), List.of()));
+        }
+
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + plugin.message("admin-beds-give-prompt",
+                "Choose a player to receive this respawn point."));
+        lore.add(formatOwnerBedLabel(owner, entry));
+        if (targets.isEmpty()) {
+            lore.add(ChatColor.RED + plugin.message("admin-beds-give-empty",
+                    "No known players can receive this respawn point."));
+        }
+        inventory.setItem(INFO_SLOT, createControlItem(Material.CHEST,
+                ChatColor.GOLD + plugin.message("admin-beds-give-page", "Recipients {1}/{2}")
+                        .replace("{1}", Integer.toString(page + 1))
+                        .replace("{2}", Integer.toString(totalPages)),
+                lore));
+        inventory.setItem(PRIMARY_ACTION_SLOT, createControlItem(Material.ARROW,
+                ChatColor.YELLOW + plugin.message("bed-action-back", "Back to beds"),
+                List.of(ChatColor.GRAY + plugin.message("admin-beds-give-back-lore",
+                        "Return to the selected respawn point actions."))));
         inventory.setItem(CLOSE_SLOT, createControlItem(Material.BARRIER,
                 ChatColor.RED + plugin.message("manage-menu-close", "Close menu"),
                 List.of(ChatColor.GRAY + plugin.message("manage-menu-close-lore", "Close the beds management menu."))));
@@ -566,6 +698,20 @@ public class AdminBedsMenuHandler implements Listener {
         return item;
     }
 
+    private static ItemStack createGrantTargetItem(OfflinePlayer target) {
+        ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
+        SkullMeta meta = (SkullMeta) item.getItemMeta();
+        meta.setOwningPlayer(target);
+        meta.setDisplayName((target.isOnline() ? ChatColor.GREEN : ChatColor.RED) + getOwnerName(target));
+        hideMenuTooltipDetails(meta);
+        meta.setLore(List.of(ChatColor.GRAY + plugin.message("admin-beds-give-target-click",
+                "Click to give this respawn point to the player.")));
+        meta.getPersistentDataContainer().set(PluginKeys.adminTarget(), PersistentDataType.STRING,
+                target.getUniqueId().toString());
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private static ItemStack createActionItem(Material material, boolean enabled, String name, String loreLine) {
         ItemStack item = new ItemStack(material, 1);
         ItemMeta meta = item.getItemMeta();
@@ -618,6 +764,54 @@ public class AdminBedsMenuHandler implements Listener {
         return true;
     }
 
+    private static boolean grantRespawnPointToPlayer(Player admin, OfflinePlayer target, OfflinePlayer owner,
+            String bedUuid) {
+        String ownerName = getOwnerName(owner);
+        String targetName = getOwnerName(target);
+        PlayerBedsData ownerBedsData = getPlayerBedsData(owner);
+        if (ownerBedsData == null || ownerBedsData.getPlayerBedData() == null || !ownerBedsData.hasBed(bedUuid)) {
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
+                    "That player no longer has that bed saved."));
+            return false;
+        }
+
+        PlayerBedsData targetBedsData = getPlayerBedsData(target);
+        if (targetBedsData == null) {
+            targetBedsData = new PlayerBedsData();
+        }
+        if (targetBedsData.hasBed(bedUuid)) {
+            admin.sendMessage(ChatColor.RED + plugin.message("admin-beds-give-already-has",
+                    "{1} already has this respawn point.").replace("{1}", targetName));
+            return false;
+        }
+
+        boolean transferOwnership = plugin.getConfig().getBoolean("exclusive-bed");
+        if (!ownerBedsData.grantBed(targetBedsData, bedUuid, transferOwnership)) {
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
+                    "That player no longer has that bed saved."));
+            return false;
+        }
+
+        savePlayerBedsData(target, targetBedsData);
+        if (transferOwnership) {
+            savePlayerBedsData(owner, ownerBedsData);
+        }
+        admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-give-success",
+                "Gave {1}'s respawn point to {2}.")
+                .replace("{1}", ownerName)
+                .replace("{2}", targetName));
+
+        String targetMessage = ChatColor.YELLOW + plugin.message("admin-beds-give-received",
+                "An admin gave you {1}'s respawn point.").replace("{1}", ownerName);
+        Player onlineTarget = target.getPlayer();
+        if (onlineTarget != null && onlineTarget.isOnline()) {
+            onlineTarget.sendMessage(targetMessage);
+        } else {
+            plugin.getPlayerBedStore().queuePendingMessage(target.getUniqueId(), targetMessage);
+        }
+        return true;
+    }
+
     private static OfflinePlayer getOwner(UUID ownerId) {
         return ownerId == null ? null : Bukkit.getOfflinePlayer(ownerId);
     }
@@ -651,6 +845,28 @@ public class AdminBedsMenuHandler implements Listener {
             }
         });
         targets.sort(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
+        return targets;
+    }
+
+    private static List<OfflinePlayer> getGrantTargets(UUID ownerId, String bedUuid) {
+        Map<UUID, OfflinePlayer> knownPlayers = new HashMap<>();
+        Bukkit.getOnlinePlayers().forEach(player -> knownPlayers.put(player.getUniqueId(), player));
+        for (OfflinePlayer player : Bukkit.getOfflinePlayers()) {
+            if (player != null) {
+                knownPlayers.put(player.getUniqueId(), player);
+            }
+        }
+
+        Set<UUID> existingOwners = plugin.getPlayerBedStore().getOwners(bedUuid);
+        List<OfflinePlayer> targets = new ArrayList<>();
+        for (OfflinePlayer player : knownPlayers.values()) {
+            if (player == null || player.getUniqueId().equals(ownerId) || existingOwners.contains(player.getUniqueId())) {
+                continue;
+            }
+
+            targets.add(player);
+        }
+        targets.sort(Comparator.comparing(AdminBedsMenuHandler::getOwnerSortName, String.CASE_INSENSITIVE_ORDER));
         return targets;
     }
 

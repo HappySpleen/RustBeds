@@ -62,6 +62,30 @@ public class PlayerBedsData implements Serializable {
         receiverPlayerBedsData.assignPrimaryIfNeeded();
     }
 
+    public boolean grantBed(PlayerBedsData receiverPlayerBedsData, String bedUUID, boolean transferOwnership) {
+        normalizePrimaryBeds();
+        receiverPlayerBedsData.normalizePrimaryBeds();
+
+        BedData ownerBed = bedData.get(bedUUID);
+        if (ownerBed == null) {
+            return false;
+        }
+
+        BedData bedToGrant = transferOwnership ? bedData.remove(bedUUID) : ownerBed.copy();
+        if (bedToGrant == null) {
+            return false;
+        }
+
+        bedToGrant.prepareForAdminGrant();
+        bedToGrant.setPrimary(!receiverPlayerBedsData.hasPrimaryBed());
+        receiverPlayerBedsData.bedData.put(bedUUID, bedToGrant);
+        if (transferOwnership) {
+            assignPrimaryIfNeeded();
+        }
+        receiverPlayerBedsData.assignPrimaryIfNeeded();
+        return true;
+    }
+
     public void removeBed(String bedUUID) {
         normalizePrimaryBeds();
         bedData.remove(bedUUID);

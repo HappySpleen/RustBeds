@@ -61,6 +61,7 @@ public final class AdminBedsMenuHolder implements InventoryHolder {
         OWNER_LIST,
         BED_LIST,
         ACTIONS,
-        TELEPORT_TARGET_LIST
+        TELEPORT_TARGET_LIST,
+        GRANT_TARGET_LIST
     }
 }

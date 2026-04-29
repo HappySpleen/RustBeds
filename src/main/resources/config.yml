@@ -9,12 +9,14 @@ lang: "enUS"
 
 # Maximum number of saved beds per player.
 # Hard-capped to 53 by the plugin.
-# Players with multiplebedspawn.maxcount.<num> can override this per permission.
+# Players with rustbeds.maxcount.<num> can override this per permission.
+# Legacy multiplebedspawn.maxcount.<num> still works for upgrades.
 max-beds: 15
 
 # Cooldown in seconds before the same saved bed can be used again.
 # Set to 0 to disable the cooldown.
-# Ignored for players with multiplebedspawn.skipcooldown.
+# Ignored for players with rustbeds.skipcooldown.
+# Legacy multiplebedspawn.skipcooldown still works for upgrades.
 bed-cooldown: 120
 
 # World filters for where the plugin is active.

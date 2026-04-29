@@ -1,18 +1,27 @@
-name: MultipleBedSpawn
+name: RustBeds
 version: '${project.version}'
-main: me.gabij.multiplebedspawn.MultipleBedSpawn
+main: me.happy.rustbeds.RustBeds
 api-version: '1.21.11'
 load: STARTUP
 authors: [HappySpleen]
-description: A simple plugin to allow players to choose which bed to respawn into.
+description: A plugin that lets players choose which saved respawn point to use.
 website: https://github.com/HappySpleen
 permissions:
+  rustbeds.skipcooldown:
+    description: Allows the player to skip the respawn point cooldown
+    default: false
+  rustbeds.maxcount.*:
+    description: Allows custom max saved respawn point counts (ignores the config)
+    default: false
+  rustbeds.admin:
+    description: Allows administrators to manage other players' saved respawn points and reload the plugin configuration
+    default: op
   multiplebedspawn.skipcooldown:
-    description: Allows the player to skip the bed's respawn cooldown
+    description: Legacy alias for rustbeds.skipcooldown
     default: false
   multiplebedspawn.maxcount.*:
-    description: Allows to set custom max number of beds (ignores the config)
+    description: Legacy alias for rustbeds.maxcount.*
     default: false
   multiplebedspawn.admin:
-    description: Allows administrators to manage other players' saved beds and reload the plugin configuration
+    description: Legacy alias for rustbeds.admin
     default: op

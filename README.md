@@ -1,76 +1,60 @@
-# MultipleBedSpawn
-A simple Minecraft plugin to allow players to choose which bed to respawn into.
+# RustBeds
+RustBeds is a Paper plugin that lets players save beds and respawn anchors, then choose which saved respawn point they want to use. This project was previously published as `MultipleBedSpawn`.
 
-[Spigot page](https://www.spigotmc.org/resources/multiple-bed-spawn.107057)
+[Legacy Spigot page](https://www.spigotmc.org/resources/multiple-bed-spawn.107057)
 
-[Hangar page](https://hangar.papermc.io/GabiJ/MultipleBedSpawn)
+[Legacy Hangar page](https://hangar.papermc.io/GabiJ/MultipleBedSpawn)
 
-# How it works
+## How it works
 
-When a player dies, if they have at least one bed, a respawn menu appears so they can choose where to respawn. With which bed displaying the location and cooldown timer if enabled.
+When a player dies, RustBeds opens a respawn menu if that player has at least one saved respawn point. Players can also run `/beds` at any time to manage their saved points, set a primary point, share points, or remove them.
 
-A player can set a bed by right clicking it.
-
-A player can open ```/beds``` at any time to rename, share, or remove saved beds.
+Players register a bed or respawn anchor by interacting with it in game, and the plugin stores those points in `respawn-points.db`.
 
 ![image](https://user-images.githubusercontent.com/69057368/210019366-3a981d52-79a2-4bfd-9217-0aac37918243.png)
 
-# Configuration
+## Features
 
-The plugin has a lot of options
+- Unified `/beds` workflow for player management, admin browsing, and config reloads
+- Saved beds and respawn anchors with primary-point selection
+- Cooldowns, sharing, exclusive ownership, and offline destroyed-point notifications
+- Multiverse-compatible teleports with a vanilla fallback
+- Config-driven world filters and respawn timing controls
+- SQLite-backed persistence in `respawn-points.db`
 
-<strong>lang</strong> - Chooses the language of the plugin, at the moment we have 5, English (enUS), Portuguese (ptBR), German (deDE), Russian (ruRU) and Swedish(svSE), but you can view all the supported languages at the folder ```src/main/resources/language``` inside this repo.
+## Configuration
 
-<strong>max-beds</strong> - The maximum number of beds a player can have.
+The shipped [`config.yml`](src/main/resources/config.yml) documents every option inline. Key settings include:
 
-<strong>bed-cooldown</strong> - The amount of time, in seconds, players have to wait before respawning in the same bed.
+- `lang` to select the bundled language file
+- `max-beds` and `bed-cooldown` to control saved-point limits
+- `allowlist` / `denylist` and `link-worlds` to control world visibility
+- `spawn-on-sky`, `respawn-menu-open-delay-ticks`, and `respawn-menu-timeout-seconds` for respawn flow timing
+- `exclusive-bed`, `bed-sharing`, and `respawn-anchors-enabled` for gameplay rules
+- `command-on-spawn`, `run-command-as-player`, and `teleport-provider` for integration behavior
 
-You can select which worlds the plugin will run. Choosing between allowlist or denylist (you can use both, but it does not make sense).
-Leave empty to work in every world.
+Bundled translations currently include `enUS`, `deDE`, `esES`, `frFR`, `ptBR`, `ruRU`, `svSE`, and `zhCH`.
 
-<strong>denylist</strong> - List of world where the plugin will not work.
+## Permissions
 
-<strong>allowlist</strong> - List of worlds where the plugin will work.
+- `rustbeds.skipcooldown` lets players bypass saved-point cooldowns
+- `rustbeds.maxcount.{num}` lets players override the configured saved-point limit
+- `rustbeds.admin` allows `/beds admin` and `/beds reload`
 
-<strong>link-worlds</strong> - If true, players can choose beds from all worlds.
-<br>If false, players can only choose beds from the current world.
+Legacy `multiplebedspawn.*` permission nodes still work so existing server setups can upgrade without rewriting permissions immediately.
 
-<strong>disable-bed-world-desc</strong> - If true, saved bed items in the current UI will not show the bed's world.
+## Versioning
 
-<strong>disable-bed-coords-desc</strong> - If true, saved bed items in the current UI will not show the bed's coordinates.
+RustBeds now follows Semantic Versioning starting at `1.0.0`, and release notes are tracked in [`CHANGELOG.md`](CHANGELOG.md) using Keep a Changelog.
 
-<strong>spawn-on-sky</strong> - If true, players will spawn flying in the sky.
+## Contributing
 
-<strong>exclusive-bed</strong> - If true, beds will allow only one registered player.
+To add or update a translation:
 
-<strong>bed-sharing</strong> - If true, players can share a saved bed with another online player from the ```/beds``` menu.
+- Fork the repository
+- Copy `src/main/resources/languages/enUS.yml`
+- Rename it to the language you are translating
+- Replace the strings inside the file
+- Open a pull request
 
-<strong>command-on-spawn</strong> - Command to run when player clicks the SPAWN block, leave empty to disable.
-
-<strong>run-command-as-player</strong> - If true, command is run as the user that clicked it, else as console.
-
-# Permission
-
-<strong>multiplebedspawn.skipcooldown</strong> - Allow players to skip bed cool-down.
-
-<strong>multiplebedspawn.maxcount.{num}</strong> - Allow players to have custom maximum bed amount. Change '{num}' with the number you want to be the max number of beds a player with this permission can have (ignores config.yml setting).
-
-<strong>multiplebedspawn.admin</strong> - Allow administrators to use ```/beds admin``` to manage other players' saved beds.
-
-<strong>multiplebedspawn.reload</strong> - Allow administrators to use ```/beds reload``` to reload settings from ```config.yml``` without restarting the server.
-
-
-# Help needed
-
-<strong>Translation:</strong> To help with translating this plugin you will have to:
-- Make a fork of this repo
-- Copy the ```enUS.yml``` file inside ```src/main/resources/language``` folder
-- Rename it to the language you will be translating
-- Then replace the strings inside "" to the language you want
-- Make a pull request
-
-<strong>Reminder:</strong> This is a side project of mine, but feel free to suggest features and if I like it, I might implement it (or maybe you can!). Also you can report a bug in the issues section.
-
-# Why?
-
-I created this plugin because I did not find anything similar, so I learned how to create a Minecraft plugin and made it. I got inspiration in the respawn system of the game <strong>Rust</strong> from <strong>Facepunch</strong>. I made it open source, so people can help translate it, report bugs and improve it. I hope it helps you and that you have fun with it. :)
+Bug reports and feature requests are welcome through the repository issue tracker.

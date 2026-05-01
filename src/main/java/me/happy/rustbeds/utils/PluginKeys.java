@@ -27,6 +27,10 @@ public final class PluginKeys {
         return Holder.SHARE_PLAYER;
     }
 
+    public static NamespacedKey shareInvite() {
+        return Holder.SHARE_INVITE;
+    }
+
     public static NamespacedKey adminOwner() {
         return Holder.ADMIN_OWNER;
     }
@@ -72,6 +76,7 @@ public final class PluginKeys {
         private static final NamespacedKey UUID = new NamespacedKey(LEGACY_DATA_NAMESPACE, "uuid");
         private static final NamespacedKey MENU_STATUS = new NamespacedKey(LEGACY_DATA_NAMESPACE, "menu-status");
         private static final NamespacedKey SHARE_PLAYER = new NamespacedKey(LEGACY_DATA_NAMESPACE, "share-player");
+        private static final NamespacedKey SHARE_INVITE = new NamespacedKey(LEGACY_DATA_NAMESPACE, "share-invite");
         private static final NamespacedKey ADMIN_OWNER = new NamespacedKey(LEGACY_DATA_NAMESPACE, "admin-owner");
         private static final NamespacedKey ADMIN_BED = new NamespacedKey(LEGACY_DATA_NAMESPACE, "admin-bed");
         private static final NamespacedKey ADMIN_TARGET = new NamespacedKey(LEGACY_DATA_NAMESPACE, "admin-target");

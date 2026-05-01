@@ -16,6 +16,7 @@ import java.util.List;
 import static me.happy.rustbeds.utils.PlayerUtils.stringToLocation;
 import static me.happy.rustbeds.utils.PlayerUtils.undoPropPlayer;
 import static me.happy.rustbeds.utils.TeleportUtils.teleport;
+import static me.happy.rustbeds.listeners.RespawnMenuHandler.sendPendingShareInviteNotifications;
 
 public class PlayerJoinListener implements Listener {
     RustBeds plugin;
@@ -38,6 +39,8 @@ public class PlayerJoinListener implements Listener {
         undoPropPlayer(p);
 
         plugin.getPlayerBedStore().importLegacyBeds(p);
+        sendPendingShareInviteNotifications(p);
+
         List<String> pendingMessages = plugin.getPlayerBedStore().consumePendingMessages(p.getUniqueId());
         if (pendingMessages.isEmpty()) {
             return;

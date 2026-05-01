@@ -1,6 +1,6 @@
 # Version marker for the shipped config layout.
 # The plugin updates this when new config defaults or migrations are introduced.
-config-version: 2
+config-version: 3
 
 # Language file to load from src/main/resources/languages.
 # Falls back to enUS if the selected file is missing.
@@ -60,9 +60,15 @@ respawn-menu-timeout-seconds: 30
 # Useful for survival servers where each physical bed should belong to one player.
 exclusive-bed: true
 
-# If true, the manage menu adds a share action so players can share a saved bed
-# with another online player.
+# If true, the manage menu adds a share action so players can invite another
+# known player to accept a saved respawn point.
 bed-sharing: true
+
+# How long a player share request can wait before it expires.
+# Offline recipients see pending requests when they next join if the request has
+# not expired.
+# 1 second is the minimum.
+share-invite-expiry-seconds: 300
 
 # If true, players can save and respawn at respawn anchors in the Nether.
 # Anchor charges are shown in the UI, anchors consume one charge per respawn,

@@ -28,7 +28,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public final class RustBeds extends JavaPlugin {
-    private static final int CURRENT_CONFIG_VERSION = 2;
+    private static final int CURRENT_CONFIG_VERSION = 3;
     private static final String CONFIG_FILE_NAME = "config.yml";
     private static final String LEGACY_PLUGIN_FOLDER_NAME = "MultipleBedSpawn";
     private static final String DATABASE_FILE_NAME = "respawn-points.db";
@@ -135,6 +135,10 @@ public final class RustBeds extends JavaPlugin {
 
     public long getOfflineRespawnPointDestroyedMessageDelayTicks() {
         return Math.max(0L, getConfig().getLong("offline-respawn-point-destroyed-message-delay-ticks", 100L));
+    }
+
+    public long getShareInviteExpirySeconds() {
+        return Math.max(1L, getConfig().getLong("share-invite-expiry-seconds", 300L));
     }
 
     public boolean hasAdminPermission(CommandSender sender) {

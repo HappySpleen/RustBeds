@@ -1,0 +1,231 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release version or tag, such as 1.4.0 or v1.4.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release target
+        id: release
+        shell: bash
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            requested="${REQUESTED_TAG#refs/tags/}"
+            version="${requested#v}"
+            tag="v$version"
+            source="manual"
+          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            tag="$GITHUB_REF_NAME"
+            version="${tag#v}"
+            source="tag"
+          else
+            version="$(
+              python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          namespace = {"m": "http://maven.apache.org/POM/4.0.0"}
+          project = ET.parse("pom.xml").getroot()
+          version = project.findtext("m:version", namespaces=namespace)
+          if not version:
+              raise SystemExit("pom.xml does not define project.version")
+          print(version)
+          PY
+            )"
+            tag="v$version"
+            source="pom"
+
+            previous_version=""
+            if [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]] \
+              && git cat-file -e "$BEFORE_SHA:pom.xml" 2>/dev/null; then
+              previous_pom="$(mktemp)"
+              git show "$BEFORE_SHA:pom.xml" > "$previous_pom"
+              previous_version="$(
+                POM_FILE="$previous_pom" python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          namespace = {"m": "http://maven.apache.org/POM/4.0.0"}
+          project = ET.parse(os.environ["POM_FILE"]).getroot()
+          version = project.findtext("m:version", namespaces=namespace)
+          print(version or "")
+          PY
+              )"
+              rm -f "$previous_pom"
+            fi
+
+            if [[ "$previous_version" == "$version" ]]; then
+              echo "::notice::No Maven project version bump detected. project.version is still $version. Skipping release."
+              {
+                echo "should_release=false"
+                echo "source=$source"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "::notice::Detected pom.xml version bump from ${previous_version:-unknown} to $version."
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Release versions must look like 1.2.3 or 1.2.3-rc.1."
+            exit 1
+          fi
+
+          {
+            echo "should_release=true"
+            echo "source=$source"
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "artifact=target/smartpack-$version.jar"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Prepare release ref
+        id: release_ref
+        if: steps.release.outputs.should_release == 'true'
+        shell: bash
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          SOURCE: ${{ steps.release.outputs.source }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          if [[ "$SOURCE" == "manual" ]] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Using existing release tag $TAG."
+            git checkout --detach "refs/tags/$TAG"
+            echo "create_tag=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$SOURCE" == "manual" || "$SOURCE" == "pom" ]]; then
+            if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+              echo "::error::Tag $TAG already exists. Bump pom.xml to a new version or manually release that tag."
+              exit 1
+            fi
+
+            echo "::notice::Tag $TAG does not exist yet. It will be created from $GITHUB_SHA after the build passes."
+            echo "create_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "create_tag=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Java
+        if: steps.release.outputs.should_release == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Validate Maven version
+        if: steps.release.outputs.should_release == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          pom_version="$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)"
+
+          if [[ "$pom_version" != "$VERSION" ]]; then
+            echo "::error::Tag version $VERSION does not match pom.xml version $pom_version."
+            exit 1
+          fi
+
+      - name: Build plugin
+        if: steps.release.outputs.should_release == 'true'
+        run: mvn -B -ntp clean package
+
+      - name: Prepare release notes
+        if: steps.release.outputs.should_release == 'true'
+        shell: bash
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          set +e
+          awk -v version="$VERSION" '
+            $0 ~ "^## \\[" version "\\]" { capture = 1; found = 1; next }
+            capture && /^---$/ { exit }
+            capture && /^## \[/ { exit }
+            capture { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > release-notes.md
+          status=$?
+          set -e
+
+          if [[ $status -ne 0 || ! -s release-notes.md ]]; then
+            {
+              echo "SmartPack $VERSION"
+              echo
+              echo "Built from tag $TAG."
+            } > release-notes.md
+          fi
+
+      - name: Create release tag
+        if: steps.release.outputs.should_release == 'true' && steps.release_ref.outputs.create_tag == 'true'
+        shell: bash
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG was created while this workflow was running. Re-run the workflow to use that tag."
+            exit 1
+          fi
+
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+
+      - name: Publish GitHub release
+        if: steps.release.outputs.should_release == 'true'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+          ARTIFACT: ${{ steps.release.outputs.artifact }}
+        run: |
+          set -euo pipefail
+
+          test -f "$ARTIFACT"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" \
+              --title "SmartPack $VERSION" \
+              --notes-file release-notes.md
+            gh release upload "$TAG" "$ARTIFACT#SmartPack $VERSION.jar" --clobber
+          else
+            gh release create "$TAG" "$ARTIFACT#SmartPack $VERSION.jar" \
+              --verify-tag \
+              --title "SmartPack $VERSION" \
+              --notes-file release-notes.md
+          fi

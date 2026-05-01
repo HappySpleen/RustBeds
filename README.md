@@ -17,6 +17,7 @@ Players register a bed or respawn anchor by interacting with it in game, and the
 
 - Unified `/beds` workflow for player management, admin browsing, and config reloads
 - Saved beds and respawn anchors with primary-point selection
+- Safe respawn checks that block obstructed saved points
 - Cooldowns, sharing, exclusive ownership, and offline destroyed-point notifications
 - Multiverse-compatible teleports with a vanilla fallback
 - Config-driven world filters and respawn timing controls

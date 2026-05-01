@@ -3,13 +3,13 @@ name: Release
 on:
   push:
     branches:
-      - master
+      - main
     tags:
       - "v*.*.*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release version or tag, such as 1.4.0 or v1.4.0"
+        description: "Release version or tag, such as 1.1.3 or v1.1.3"
         required: true
         type: string
 
@@ -102,7 +102,7 @@ jobs:
             echo "source=$source"
             echo "tag=$tag"
             echo "version=$version"
-            echo "artifact=target/smartpack-$version.jar"
+            echo "artifact=target/RustBeds-$version.jar"
           } >> "$GITHUB_OUTPUT"
 
       - name: Prepare release ref
@@ -180,7 +180,7 @@ jobs:
 
           if [[ $status -ne 0 || ! -s release-notes.md ]]; then
             {
-              echo "SmartPack $VERSION"
+              echo "RustBeds $VERSION"
               echo
               echo "Built from tag $TAG."
             } > release-notes.md
@@ -220,12 +220,12 @@ jobs:
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" \
-              --title "SmartPack $VERSION" \
+              --title "RustBeds $VERSION" \
               --notes-file release-notes.md
-            gh release upload "$TAG" "$ARTIFACT#SmartPack $VERSION.jar" --clobber
+            gh release upload "$TAG" "$ARTIFACT#RustBeds $VERSION.jar" --clobber
           else
-            gh release create "$TAG" "$ARTIFACT#SmartPack $VERSION.jar" \
+            gh release create "$TAG" "$ARTIFACT#RustBeds $VERSION.jar" \
               --verify-tag \
-              --title "SmartPack $VERSION" \
+              --title "RustBeds $VERSION" \
               --notes-file release-notes.md
           fi

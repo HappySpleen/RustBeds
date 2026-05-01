@@ -4,6 +4,7 @@ import io.papermc.paper.persistence.PersistentDataContainerView;
 import me.happy.rustbeds.RustBeds;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
+import me.happy.rustbeds.models.ShareInvite;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -318,6 +319,141 @@ public class PlayerBedStore implements AutoCloseable {
         return messages;
     }
 
+    public synchronized ShareInvite createShareInvite(UUID senderId, String senderName, UUID targetId,
+            String targetName, String bedUuid, boolean transferOwnership, long expiresAt) {
+        ensureConnection();
+        pruneExpiredShareInvites();
+
+        UUID inviteId = UUID.randomUUID();
+        long createdAt = System.currentTimeMillis();
+        boolean originalAutoCommit = true;
+        try {
+            originalAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+
+            try (PreparedStatement deleteStatement = connection.prepareStatement(
+                    "DELETE FROM pending_share_invites WHERE sender_uuid = ? AND target_uuid = ? AND bed_uuid = ?")) {
+                deleteStatement.setString(1, senderId.toString());
+                deleteStatement.setString(2, targetId.toString());
+                deleteStatement.setString(3, bedUuid);
+                deleteStatement.executeUpdate();
+            }
+
+            String insertSql = "INSERT INTO pending_share_invites (invite_uuid, sender_uuid, sender_name, "
+                    + "target_uuid, target_name, bed_uuid, transfer_ownership, created_at, expires_at) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement insertStatement = connection.prepareStatement(insertSql)) {
+                insertStatement.setString(1, inviteId.toString());
+                insertStatement.setString(2, senderId.toString());
+                insertStatement.setString(3, senderName);
+                insertStatement.setString(4, targetId.toString());
+                insertStatement.setString(5, targetName);
+                insertStatement.setString(6, bedUuid);
+                insertStatement.setInt(7, transferOwnership ? 1 : 0);
+                insertStatement.setLong(8, createdAt);
+                insertStatement.setLong(9, expiresAt);
+                insertStatement.executeUpdate();
+            }
+
+            connection.commit();
+        } catch (SQLException exception) {
+            rollbackQuietly();
+            logSqlWarning("Could not create pending share invite for " + targetId, exception);
+            return null;
+        } finally {
+            resetAutoCommitQuietly(originalAutoCommit);
+        }
+
+        return new ShareInvite(inviteId, senderId, senderName, targetId, targetName, bedUuid, transferOwnership,
+                createdAt, expiresAt);
+    }
+
+    public synchronized ShareInvite getShareInvite(UUID inviteId) {
+        ensureConnection();
+        pruneExpiredShareInvites();
+
+        String sql = "SELECT invite_uuid, sender_uuid, sender_name, target_uuid, target_name, bed_uuid, "
+                + "transfer_ownership, created_at, expires_at FROM pending_share_invites WHERE invite_uuid = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, inviteId.toString());
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return mapShareInvite(resultSet);
+                }
+            }
+        } catch (SQLException exception) {
+            logSqlWarning("Could not load pending share invite " + inviteId, exception);
+        }
+
+        return null;
+    }
+
+    public synchronized List<ShareInvite> getPendingShareInvites(UUID targetId) {
+        ensureConnection();
+        pruneExpiredShareInvites();
+
+        List<ShareInvite> invites = new ArrayList<>();
+        String sql = "SELECT invite_uuid, sender_uuid, sender_name, target_uuid, target_name, bed_uuid, "
+                + "transfer_ownership, created_at, expires_at FROM pending_share_invites "
+                + "WHERE target_uuid = ? ORDER BY created_at ASC";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, targetId.toString());
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    ShareInvite invite = mapShareInvite(resultSet);
+                    if (invite != null) {
+                        invites.add(invite);
+                    }
+                }
+            }
+        } catch (SQLException exception) {
+            logSqlWarning("Could not load pending share invites for " + targetId, exception);
+        }
+
+        return invites;
+    }
+
+    public synchronized boolean deleteShareInvite(UUID inviteId) {
+        ensureConnection();
+
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM pending_share_invites WHERE invite_uuid = ?")) {
+            statement.setString(1, inviteId.toString());
+            return statement.executeUpdate() > 0;
+        } catch (SQLException exception) {
+            logSqlWarning("Could not delete pending share invite " + inviteId, exception);
+            return false;
+        }
+    }
+
+    public synchronized void deleteShareInvitesForBed(String bedUuid) {
+        if (bedUuid == null || bedUuid.isBlank()) {
+            return;
+        }
+
+        ensureConnection();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM pending_share_invites WHERE bed_uuid = ?")) {
+            statement.setString(1, bedUuid);
+            statement.executeUpdate();
+        } catch (SQLException exception) {
+            logSqlWarning("Could not delete pending share invites for bed " + bedUuid, exception);
+        }
+    }
+
+    public synchronized int pruneExpiredShareInvites() {
+        ensureConnection();
+
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM pending_share_invites WHERE expires_at <= ?")) {
+            statement.setLong(1, System.currentTimeMillis());
+            return statement.executeUpdate();
+        } catch (SQLException exception) {
+            logSqlWarning("Could not prune expired share invites", exception);
+            return 0;
+        }
+    }
+
     @Override
     public synchronized void close() {
         if (connection == null) {
@@ -378,6 +514,23 @@ public class PlayerBedStore implements AutoCloseable {
                         message TEXT NOT NULL
                     )
                     """);
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS pending_share_invites (
+                        invite_uuid TEXT PRIMARY KEY,
+                        sender_uuid TEXT NOT NULL,
+                        sender_name TEXT NOT NULL,
+                        target_uuid TEXT NOT NULL,
+                        target_name TEXT NOT NULL,
+                        bed_uuid TEXT NOT NULL,
+                        transfer_ownership INTEGER NOT NULL DEFAULT 0,
+                        created_at INTEGER NOT NULL,
+                        expires_at INTEGER NOT NULL
+                    )
+                    """);
+            statement.executeUpdate("CREATE INDEX IF NOT EXISTS idx_pending_share_invites_target "
+                    + "ON pending_share_invites (target_uuid, expires_at)");
+            statement.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_share_invites_unique "
+                    + "ON pending_share_invites (sender_uuid, target_uuid, bed_uuid)");
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS meta (
                         key TEXT PRIMARY KEY,
@@ -544,11 +697,36 @@ public class PlayerBedStore implements AutoCloseable {
     }
 
     private UUID parseUuid(String value) {
+        if (value == null) {
+            return null;
+        }
+
         try {
             return UUID.fromString(value);
         } catch (IllegalArgumentException ignored) {
             return null;
         }
+    }
+
+    private ShareInvite mapShareInvite(ResultSet resultSet) throws SQLException {
+        UUID inviteId = parseUuid(resultSet.getString("invite_uuid"));
+        UUID senderId = parseUuid(resultSet.getString("sender_uuid"));
+        UUID targetId = parseUuid(resultSet.getString("target_uuid"));
+        if (inviteId == null || senderId == null || targetId == null) {
+            return null;
+        }
+
+        return new ShareInvite(
+                inviteId,
+                senderId,
+                resultSet.getString("sender_name"),
+                targetId,
+                resultSet.getString("target_name"),
+                resultSet.getString("bed_uuid"),
+                resultSet.getInt("transfer_ownership") == 1,
+                resultSet.getLong("created_at"),
+                resultSet.getLong("expires_at")
+        );
     }
 
     private String buildDestroyedMessage(BedData bedData) {

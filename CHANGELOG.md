@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-05-01
+
 ### Added
 - Added pending player share invites with menu-driven accept and deny actions, expiry, and queued offline delivery for known offline recipients.
 

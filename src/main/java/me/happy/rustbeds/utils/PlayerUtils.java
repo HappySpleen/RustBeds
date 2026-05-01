@@ -10,6 +10,8 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.HashMap;
 import java.util.UUID;
@@ -18,6 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static me.happy.rustbeds.utils.BedsUtils.checksIfBedExists;
 
 public class PlayerUtils {
+
+    private static final int RESPAWN_MENU_DARKNESS_TICKS = 20 * 60 * 60;
 
     static RustBeds plugin = RustBeds.getInstance();
 
@@ -48,6 +52,7 @@ public class PlayerUtils {
                 p.setAllowFlight(true);
                 p.setFlying(true);
             }
+            applyRespawnMenuDarkness(p);
             playerData.set(PluginKeys.lastWalkSpeed(), PersistentDataType.FLOAT, p.getWalkSpeed());
             p.setWalkSpeed(0);
 
@@ -70,6 +75,7 @@ public class PlayerUtils {
 
             p.setWalkSpeed(playerData.get(PluginKeys.lastWalkSpeed(), PersistentDataType.FLOAT));
             playerData.remove(PluginKeys.lastWalkSpeed());
+            clearRespawnMenuDarkness(p);
 
             if (plugin.getConfig().getBoolean("spawn-on-sky")) {
                 p.setAllowFlight(playerData.get(PluginKeys.allowFly(), PersistentDataType.BOOLEAN));
@@ -82,6 +88,18 @@ public class PlayerUtils {
             p.closeInventory();
         }
 
+    }
+
+    private static void applyRespawnMenuDarkness(Player p) {
+        p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, RESPAWN_MENU_DARKNESS_TICKS, 1,
+                false, false, false), true);
+        p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, RESPAWN_MENU_DARKNESS_TICKS, 1,
+                false, false, false), true);
+    }
+
+    private static void clearRespawnMenuDarkness(Player p) {
+        p.removePotionEffect(PotionEffectType.DARKNESS);
+        p.removePotionEffect(PotionEffectType.BLINDNESS);
     }
 
     public static Location getPlayerRespawnLoc(Player p) {

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-05-01
+
+### Added
+- Added temporary darkness and blindness effects while the death respawn menu is open so the background view is as dark as possible.
+
 ## [1.1.3] - 2026-05-01
 
 ### Fixed

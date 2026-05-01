@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-05-01
+
+### Changed
+- Sorted player-list menus with online players first, then player names A to Z.
+
+## [1.4.2] - 2026-05-01
+
+### Added
+- Added a clickable pending-request chat link that opens the share or transfer requests page directly with `/beds requests`.
+
+## [1.4.1] - 2026-05-01
+
+### Changed
+- Changed player sharing UI text to say transfer or transferred when `exclusive-bed: true` makes requests transfer ownership.
+
+## [1.4.0] - 2026-05-01
+
+### Added
+- Added `safe-location-search` config tuning for obstruction search radius and required collision-free respawn height.
+
 ## [1.3.0] - 2026-05-01
 
 ### Added

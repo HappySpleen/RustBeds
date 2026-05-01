@@ -833,7 +833,7 @@ public class AdminBedsMenuHandler implements Listener {
         for (UUID ownerId : plugin.getPlayerBedStore().getPlayersWithBeds()) {
             owners.add(Bukkit.getOfflinePlayer(ownerId));
         }
-        owners.sort(Comparator.comparing(AdminBedsMenuHandler::getOwnerSortName, String.CASE_INSENSITIVE_ORDER));
+        owners.sort(offlinePlayerListComparator());
         return owners;
     }
 
@@ -844,7 +844,7 @@ public class AdminBedsMenuHandler implements Listener {
                 targets.add(player);
             }
         });
-        targets.sort(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
+        targets.sort(onlinePlayerListComparator());
         return targets;
     }
 
@@ -866,8 +866,23 @@ public class AdminBedsMenuHandler implements Listener {
 
             targets.add(player);
         }
-        targets.sort(Comparator.comparing(AdminBedsMenuHandler::getOwnerSortName, String.CASE_INSENSITIVE_ORDER));
+        targets.sort(offlinePlayerListComparator());
         return targets;
+    }
+
+    private static Comparator<OfflinePlayer> offlinePlayerListComparator() {
+        return Comparator.comparing((OfflinePlayer player) -> !isOnlinePlayer(player))
+                .thenComparing(AdminBedsMenuHandler::getOwnerSortName, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(player -> player == null ? "" : player.getUniqueId().toString());
+    }
+
+    private static Comparator<Player> onlinePlayerListComparator() {
+        return Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(player -> player.getUniqueId().toString());
+    }
+
+    private static boolean isOnlinePlayer(OfflinePlayer player) {
+        return player != null && player.isOnline();
     }
 
     private static List<BedMenuEntry> getOwnerBedEntries(OfflinePlayer owner) {
@@ -929,7 +944,8 @@ public class AdminBedsMenuHandler implements Listener {
         List<String> lore = new ArrayList<>();
         boolean hasMetadata = false;
         if (entry.bedData().hasSharedByName()) {
-            lore.add(ChatColor.BLUE + plugin.message("bed-shared-by-label", "Shared By: {1}")
+            lore.add(ChatColor.BLUE + plugin.sharingModeMessage("bed-shared-by-label", "Shared By: {1}",
+                    "bed-transferred-by-label", "Transferred By: {1}")
                     .replace("{1}", entry.bedData().getSharedByName()));
             hasMetadata = true;
         }
@@ -1025,7 +1041,8 @@ public class AdminBedsMenuHandler implements Listener {
             return;
         }
 
-        lore.add(ChatColor.BLUE + plugin.message("bed-shared-by-label", "Shared By: {1}")
+        lore.add(ChatColor.BLUE + plugin.sharingModeMessage("bed-shared-by-label", "Shared By: {1}",
+                "bed-transferred-by-label", "Transferred By: {1}")
                 .replace("{1}", entry.bedData().getSharedByName()));
     }
 

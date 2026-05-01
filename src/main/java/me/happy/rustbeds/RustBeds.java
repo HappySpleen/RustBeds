@@ -28,7 +28,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public final class RustBeds extends JavaPlugin {
-    private static final int CURRENT_CONFIG_VERSION = 3;
+    private static final int CURRENT_CONFIG_VERSION = 4;
     private static final String CONFIG_FILE_NAME = "config.yml";
     private static final String LEGACY_PLUGIN_FOLDER_NAME = "MultipleBedSpawn";
     private static final String DATABASE_FILE_NAME = "respawn-points.db";
@@ -139,6 +139,35 @@ public final class RustBeds extends JavaPlugin {
 
     public long getShareInviteExpirySeconds() {
         return Math.max(1L, getConfig().getLong("share-invite-expiry-seconds", 300L));
+    }
+
+    public boolean usesTransferSharingLanguage() {
+        return getConfig().getBoolean("exclusive-bed");
+    }
+
+    public String sharingModeMessage(String shareKey, String shareFallback, String transferKey,
+            String transferFallback) {
+        return sharingModeMessage(usesTransferSharingLanguage(), shareKey, shareFallback, transferKey,
+                transferFallback);
+    }
+
+    public String sharingModeMessage(boolean transfer, String shareKey, String shareFallback, String transferKey,
+            String transferFallback) {
+        return transfer
+                ? message(transferKey, transferFallback)
+                : message(shareKey, shareFallback);
+    }
+
+    public int getSafeLocationHorizontalRadiusBlocks() {
+        return Math.max(0, getConfig().getInt("safe-location-search.horizontal-radius-blocks", 2));
+    }
+
+    public double getSafeLocationVerticalRadiusBlocks() {
+        return Math.max(0.0D, getConfig().getDouble("safe-location-search.vertical-radius-blocks", 0.375D));
+    }
+
+    public double getSafeLocationRequiredSpaceHeightBlocks() {
+        return Math.max(0.0625D, getConfig().getDouble("safe-location-search.required-space-height-blocks", 1.625D));
     }
 
     public boolean hasAdminPermission(CommandSender sender) {

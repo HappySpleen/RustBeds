@@ -7,7 +7,7 @@ RustBeds is a Paper plugin that lets players save beds and respawn anchors, then
 
 ## How it works
 
-When a player dies, RustBeds opens a respawn menu if that player has at least one saved respawn point. Players can also run `/beds` at any time to manage their saved points, set a primary point, share points, or remove them.
+When a player dies, RustBeds opens a respawn menu if that player has at least one saved respawn point. Players can also run `/beds` at any time to manage their saved points, set a primary point, share or transfer points, or remove them. Pending share and transfer requests can be opened directly with `/beds requests`.
 
 Players register a bed or respawn anchor by interacting with it in game, and the plugin stores those points in `respawn-points.db`.
 
@@ -18,9 +18,9 @@ Players register a bed or respawn anchor by interacting with it in game, and the
 - Unified `/beds` workflow for player management, admin browsing, and config reloads
 - Saved beds and respawn anchors with primary-point selection
 - Safe respawn checks that block obstructed saved points
-- Cooldowns, sharing, exclusive ownership, and offline destroyed-point notifications
+- Cooldowns, sharing or transfer flows, exclusive ownership, and offline destroyed-point notifications
 - Multiverse-compatible teleports with a vanilla fallback
-- Config-driven world filters and respawn timing controls
+- Config-driven world filters, safe-location search, and respawn timing controls
 - SQLite-backed persistence in `respawn-points.db`
 
 ## Configuration
@@ -31,6 +31,7 @@ The shipped [`config.yml`](src/main/resources/config.yml) documents every option
 - `max-beds` and `bed-cooldown` to control saved-point limits
 - `allowlist` / `denylist` and `link-worlds` to control world visibility
 - `spawn-on-sky`, `respawn-menu-open-delay-ticks`, and `respawn-menu-timeout-seconds` for respawn flow timing
+- `safe-location-search` to tune obstruction search radius and required player space
 - `exclusive-bed`, `bed-sharing`, and `respawn-anchors-enabled` for gameplay rules
 - `command-on-spawn`, `run-command-as-player`, and `teleport-provider` for integration behavior
 

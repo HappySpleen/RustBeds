@@ -131,7 +131,7 @@ public class AdminBedsMenuHandler implements Listener {
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(), AdminBedsMenuHolder.ViewType.ACTIONS,
                 returnPage, 0, ownerId, bedUuid);
         Inventory inventory = Bukkit.createInventory(holder, ACTION_SIZE,
-                plugin.message("admin-beds-actions-title", "Admin bed actions"));
+                formatActionMenuTitle(entry));
         holder.setInventory(inventory);
 
         renderActionMenu(inventory, owner, entry);
@@ -1009,6 +1009,15 @@ public class AdminBedsMenuHandler implements Listener {
 
     private static String formatOwnerBedLabel(OfflinePlayer owner, BedMenuEntry entry) {
         return formatOwnerLoreName(owner) + ChatColor.GRAY + ": " + ChatColor.YELLOW + entry.displayName();
+    }
+
+    private static String formatActionMenuTitle(BedMenuEntry entry) {
+        String title = plugin.message("admin-beds-actions-title", "Admin: {1}");
+        if (title.contains("{1}")) {
+            return title.replace("{1}", entry.displayName());
+        }
+
+        return title + ": " + entry.displayName();
     }
 
     private static void appendSharedByLore(List<String> lore, BedMenuEntry entry) {

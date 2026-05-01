@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-05-01
+
+### Changed
+- Changed the default safe-location vertical search radius to `0.5` blocks and required collision-free height to `1.5` blocks.
+
 ## [1.4.3] - 2026-05-01
 
 ### Changed

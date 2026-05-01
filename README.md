@@ -75,6 +75,7 @@ The shipped [`config.yml`](src/main/resources/config.yml) documents each option 
 - `max-beds` and `bed-cooldown` for player limits and reuse timing
 - `allowlist`, `denylist`, and `link-worlds` for world visibility
 - `spawn-on-sky`, `respawn-menu-open-delay-ticks`, and `respawn-menu-timeout-seconds` for the death-menu flow
+- `safe-location-search` for obstruction search radius and required collision-free respawn space
 - `exclusive-bed`, `bed-sharing`, and `respawn-anchors-enabled` for gameplay rules
 - `command-on-spawn`, `run-command-as-player`, and `teleport-provider` for integration behavior
 

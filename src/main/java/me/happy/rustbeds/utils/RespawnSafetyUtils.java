@@ -8,8 +8,8 @@ import org.bukkit.util.BoundingBox;
 
 public final class RespawnSafetyUtils {
     private static final int DEFAULT_HORIZONTAL_RADIUS = 2;
-    private static final double DEFAULT_VERTICAL_RADIUS = 0.375;
-    private static final double DEFAULT_SAFE_SPACE_HEIGHT = 1.625;
+    private static final double DEFAULT_VERTICAL_RADIUS = 0.5;
+    private static final double DEFAULT_SAFE_SPACE_HEIGHT = 1.5;
     private static final double VERTICAL_STEP_SIZE = 0.0625;
     private static final double EPSILON = 0.0000001;
 

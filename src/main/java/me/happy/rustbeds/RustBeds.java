@@ -28,10 +28,18 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public final class RustBeds extends JavaPlugin {
-    private static final int CURRENT_CONFIG_VERSION = 4;
+    private static final int CURRENT_CONFIG_VERSION = 5;
     private static final String CONFIG_FILE_NAME = "config.yml";
     private static final String LEGACY_PLUGIN_FOLDER_NAME = "MultipleBedSpawn";
     private static final String DATABASE_FILE_NAME = "respawn-points.db";
+    private static final String SAFE_LOCATION_VERTICAL_RADIUS_PATH = "safe-location-search.vertical-radius-blocks";
+    private static final String SAFE_LOCATION_REQUIRED_SPACE_HEIGHT_PATH =
+            "safe-location-search.required-space-height-blocks";
+    private static final double OLD_DEFAULT_SAFE_LOCATION_VERTICAL_RADIUS = 0.375D;
+    private static final double OLD_DEFAULT_SAFE_LOCATION_REQUIRED_SPACE_HEIGHT = 1.625D;
+    private static final double DEFAULT_SAFE_LOCATION_VERTICAL_RADIUS = 0.5D;
+    private static final double DEFAULT_SAFE_LOCATION_REQUIRED_SPACE_HEIGHT = 1.5D;
+    private static final double CONFIG_DOUBLE_EPSILON = 0.0000001D;
     private static final List<String> LEGACY_DATA_FILES = List.of(
             CONFIG_FILE_NAME,
             DATABASE_FILE_NAME,
@@ -163,11 +171,13 @@ public final class RustBeds extends JavaPlugin {
     }
 
     public double getSafeLocationVerticalRadiusBlocks() {
-        return Math.max(0.0D, getConfig().getDouble("safe-location-search.vertical-radius-blocks", 0.375D));
+        return Math.max(0.0D, getConfig().getDouble(SAFE_LOCATION_VERTICAL_RADIUS_PATH,
+                DEFAULT_SAFE_LOCATION_VERTICAL_RADIUS));
     }
 
     public double getSafeLocationRequiredSpaceHeightBlocks() {
-        return Math.max(0.0625D, getConfig().getDouble("safe-location-search.required-space-height-blocks", 1.625D));
+        return Math.max(0.0625D, getConfig().getDouble(SAFE_LOCATION_REQUIRED_SPACE_HEIGHT_PATH,
+                DEFAULT_SAFE_LOCATION_REQUIRED_SPACE_HEIGHT));
     }
 
     public boolean hasAdminPermission(CommandSender sender) {
@@ -302,6 +312,7 @@ public final class RustBeds extends JavaPlugin {
 
         copyConfiguredValues(existingConfig, mergedConfig);
         copyCustomValues(existingConfig, mergedConfig);
+        applyConfigMigrations(existingConfig, mergedConfig);
         syncConfigVersion(mergedConfig);
 
         String mergedContent = mergedConfig.saveToString();
@@ -353,6 +364,28 @@ public final class RustBeds extends JavaPlugin {
             ensureParentSections(target, source, path);
             target.set(path, source.get(path));
             copyComments(source, target, path);
+        }
+    }
+
+    private void applyConfigMigrations(YamlConfiguration source, YamlConfiguration target) {
+        int configVersion = source.isInt("config-version") ? source.getInt("config-version") : 0;
+        if (configVersion >= 5) {
+            return;
+        }
+
+        updateOldDefaultDouble(target, SAFE_LOCATION_VERTICAL_RADIUS_PATH,
+                OLD_DEFAULT_SAFE_LOCATION_VERTICAL_RADIUS, DEFAULT_SAFE_LOCATION_VERTICAL_RADIUS);
+        updateOldDefaultDouble(target, SAFE_LOCATION_REQUIRED_SPACE_HEIGHT_PATH,
+                OLD_DEFAULT_SAFE_LOCATION_REQUIRED_SPACE_HEIGHT, DEFAULT_SAFE_LOCATION_REQUIRED_SPACE_HEIGHT);
+    }
+
+    private void updateOldDefaultDouble(YamlConfiguration config, String path, double oldDefault, double newDefault) {
+        if (!config.isDouble(path) && !config.isInt(path)) {
+            return;
+        }
+
+        if (Math.abs(config.getDouble(path) - oldDefault) <= CONFIG_DOUBLE_EPSILON) {
+            config.set(path, newDefault);
         }
     }
 

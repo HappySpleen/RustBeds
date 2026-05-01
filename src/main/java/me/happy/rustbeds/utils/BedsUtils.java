@@ -90,6 +90,10 @@ public class BedsUtils {
         }
 
         Location blockLocation = savedRespawnPoint.getBedLocation();
+        if (blockLocation == null || blockLocation.getWorld() == null) {
+            return false;
+        }
+
         if (savedRespawnPoint.isRespawnAnchor()) {
             return isRegisteredAnchorPresent(blockLocation, uuid);
         }

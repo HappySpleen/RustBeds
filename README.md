@@ -9,9 +9,9 @@
 
 <p align="center">
   <a href="https://github.com/HappySpleen/RustBeds/releases">Releases</a> |
-  <a href="docs/wiki/Home.md">Docs</a> |
+  <a href="https://github.com/HappySpleen/RustBeds/wiki">Docs</a> |
   <a href="CHANGELOG.md">Changelog</a> |
-  <a href="docs/wiki/Migration-from-MultipleBedSpawn.md">Migration guide</a>
+  <a href="https://github.com/HappySpleen/RustBeds/wiki/Migration-from-MultipleBedSpawn">Migration guide</a>
 </p>
 
 # RustBeds
@@ -48,7 +48,7 @@ RustBeds was previously published as `MultipleBedSpawn`. Current releases use th
 5. Review `plugins/RustBeds/config.yml`.
 6. Give staff `rustbeds.admin` if they should use `/beds admin` or `/beds reload`.
 
-See the full [Installation](docs/wiki/Installation.md) page for update notes, folder layout, and source-build details.
+See the full [Installation](https://github.com/HappySpleen/RustBeds/wiki/Installation) page for update notes, folder layout, and source-build details.
 
 ## Commands
 
@@ -78,19 +78,19 @@ The shipped [`config.yml`](src/main/resources/config.yml) documents each option 
 - `exclusive-bed`, `bed-sharing`, and `respawn-anchors-enabled` for gameplay rules
 - `command-on-spawn`, `run-command-as-player`, and `teleport-provider` for integration behavior
 
-For server-owner explanations, see [Configuration](docs/wiki/Configuration.md) and [Respawn Flow and Safety](docs/wiki/Respawn-Flow-and-Safety.md).
+For server-owner explanations, see [Configuration](https://github.com/HappySpleen/RustBeds/wiki/Configuration) and [Respawn Flow and Safety](https://github.com/HappySpleen/RustBeds/wiki/Respawn-Flow-and-Safety).
 
 ## Documentation
 
 | Page | Contents |
 | --- | --- |
-| [Player Guide](docs/wiki/Player-Guide.md) | Saving beds and anchors, using `/beds`, sharing, and primary points. |
-| [Admin Guide](docs/wiki/Admin-Guide.md) | Staff menus, giving points, reload behavior, and operational notes. |
-| [Commands and Permissions](docs/wiki/Commands-and-Permissions.md) | Command table, permissions, and legacy aliases. |
-| [Languages](docs/wiki/Languages.md) | Bundled translations and how language selection works. |
-| [Migration from MultipleBedSpawn](docs/wiki/Migration-from-MultipleBedSpawn.md) | Upgrade behavior for older installs. |
-| [Releases and Building](docs/wiki/Releases-and-Building.md) | Maven builds, release artifacts, and versioning. |
-| [Branding](docs/wiki/Branding.md) | Project logos, banners, icons, and usage notes. |
+| [Player Guide](https://github.com/HappySpleen/RustBeds/wiki/Player-Guide) | Saving beds and anchors, using `/beds`, sharing, and primary points. |
+| [Admin Guide](https://github.com/HappySpleen/RustBeds/wiki/Admin-Guide) | Staff menus, giving points, reload behavior, and operational notes. |
+| [Commands and Permissions](https://github.com/HappySpleen/RustBeds/wiki/Commands-and-Permissions) | Command table, permissions, and legacy aliases. |
+| [Languages](https://github.com/HappySpleen/RustBeds/wiki/Languages) | Bundled translations and how language selection works. |
+| [Migration from MultipleBedSpawn](https://github.com/HappySpleen/RustBeds/wiki/Migration-from-MultipleBedSpawn) | Upgrade behavior for older installs. |
+| [Releases and Building](https://github.com/HappySpleen/RustBeds/wiki/Releases-and-Building) | Maven builds, release artifacts, and versioning. |
+| [Branding](https://github.com/HappySpleen/RustBeds/wiki/Branding) | Project logos, banners, icons, and usage notes. |
 
 ## Build From Source
 

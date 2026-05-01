@@ -13,11 +13,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
+import static me.happy.rustbeds.listeners.RespawnMenuHandler.openPendingRequestsMenu;
 import static me.happy.rustbeds.listeners.RespawnMenuHandler.openCommandMenu;
 
 public class RespawnMenuCommand implements BasicCommand {
     public static final String LABEL = "beds";
-    public static final String DESCRIPTION = "Opens the beds menu and plugin subcommands";
+    public static final String DESCRIPTION = "Opens the beds menu, pending requests, and plugin subcommands";
 
     private final RustBeds plugin;
 
@@ -35,16 +36,17 @@ public class RespawnMenuCommand implements BasicCommand {
             }
 
             sender.sendMessage(ChatColor.RED + plugin.message("beds-command-usage",
-                    "Usage: /beds, /beds admin, or /beds reload"));
+                    "Usage: /beds, /beds requests, /beds admin, or /beds reload"));
             return;
         }
 
         String subcommand = args[0].toLowerCase(Locale.ROOT);
         switch (subcommand) {
             case "admin" -> handleAdminCommand(sender);
+            case "pending", "requests" -> handlePendingRequestsCommand(sender);
             case "reload" -> handleReloadCommand(sender);
             default -> sender.sendMessage(ChatColor.RED + plugin.message("beds-command-usage",
-                    "Usage: /beds, /beds admin, or /beds reload"));
+                    "Usage: /beds, /beds requests, /beds admin, or /beds reload"));
         }
     }
 
@@ -56,6 +58,9 @@ public class RespawnMenuCommand implements BasicCommand {
 
         CommandSender sender = commandSourceStack.getSender();
         List<String> suggestions = new java.util.ArrayList<>();
+        if (sender instanceof Player) {
+            suggestions.add("requests");
+        }
         if (plugin.hasAdminPermission(sender)) {
             suggestions.add("admin");
             suggestions.add("reload");
@@ -65,6 +70,15 @@ public class RespawnMenuCommand implements BasicCommand {
         return suggestions.stream()
                 .filter(option -> option.startsWith(input))
                 .collect(Collectors.toList());
+    }
+
+    private void handlePendingRequestsCommand(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ChatColor.RED + plugin.message("beds-player-only", "Only players can use this command."));
+            return;
+        }
+
+        openPendingRequestsMenu(player);
     }
 
     private void handleAdminCommand(CommandSender sender) {

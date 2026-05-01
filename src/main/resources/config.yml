@@ -1,6 +1,6 @@
 # Version marker for the shipped config layout.
 # The plugin updates this when new config defaults or migrations are introduced.
-config-version: 3
+config-version: 4
 
 # Language file to load from src/main/resources/languages.
 # Falls back to enUS if the selected file is missing.
@@ -55,6 +55,17 @@ offline-respawn-point-destroyed-message-delay-ticks: 140
 # On timeout, it tries the player's primary bed first, then falls back to normal spawn.
 # 0 does not disable the timeout; the code clamps this to at least 1 tick.
 respawn-menu-timeout-seconds: 30
+
+# Safe-location search used before teleporting to a saved respawn point.
+# Higher search values can make respawn-menu refreshes more expensive.
+safe-location-search:
+  # Whole-block radius around the registered bed or anchor.
+  horizontal-radius-blocks: 2
+  # Vertical radius above and below the preferred spawn position, in blocks.
+  # 0.375 preserves the previous six 1/16-block steps in each direction.
+  vertical-radius-blocks: 0.375
+  # Required collision-free space above the candidate respawn position, in blocks.
+  required-space-height-blocks: 1.625
 
 # If true, a player cannot register a bed that is already owned by someone else.
 # Useful for survival servers where each physical bed should belong to one player.

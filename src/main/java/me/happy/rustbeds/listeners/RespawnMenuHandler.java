@@ -7,6 +7,8 @@ import me.happy.rustbeds.models.PlayerBedsData;
 import me.happy.rustbeds.models.ShareInvite;
 import me.happy.rustbeds.utils.PluginKeys;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
@@ -52,6 +54,8 @@ import static me.happy.rustbeds.utils.RunCommandUtils.runCommandOnSpawn;
 import static me.happy.rustbeds.utils.TeleportUtils.teleport;
 
 public class RespawnMenuHandler implements Listener {
+    public static final String PENDING_REQUESTS_COMMAND = "/beds requests";
+
     private static final int LIST_SIZE = 54;
     private static final int ACTION_SIZE = 27;
     private static final int PAGE_SIZE = 45;
@@ -89,6 +93,10 @@ public class RespawnMenuHandler implements Listener {
         }
 
         openManageMenu(player, 0);
+    }
+
+    public static void openPendingRequestsMenu(Player player) {
+        showShareInviteListMenu(player, 0);
     }
 
     public static void beginRespawnMenu(Player player, long openDelayTicks) {
@@ -506,7 +514,8 @@ public class RespawnMenuHandler implements Listener {
 
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(), RespawnMenuHolder.ViewType.SHARE_LIST,
                 page, bedUuid);
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE, plugin.message("bed-share-title", "Share bed"));
+        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
+                sharingModeMessage("bed-share-title", "Share bed", "bed-transfer-title", "Transfer respawn"));
         holder.setInventory(inventory);
 
         renderShareMenu(inventory, candidates, page, totalPages);
@@ -521,13 +530,15 @@ public class RespawnMenuHandler implements Listener {
             ACTIVE_SESSIONS.put(player.getUniqueId(), session);
         }
 
-        List<ShareInvite> invites = getPendingShareInvites(player);
+        List<ShareInvite> invites = new ArrayList<>(getPendingShareInvites(player));
+        invites.sort(shareInviteSenderComparator());
         if (invites.isEmpty()) {
             if (getMenuEntries(player).isEmpty()) {
                 cancelSession(player.getUniqueId());
                 player.closeInventory();
-                player.sendMessage(ChatColor.YELLOW + plugin.message("bed-share-invites-empty",
-                        "You have no pending share requests."));
+                player.sendMessage(ChatColor.YELLOW + sharingModeMessage("bed-share-invites-empty",
+                        "You have no pending share requests.", "bed-transfer-invites-empty",
+                        "You have no pending transfer requests."));
                 return;
             }
 
@@ -544,7 +555,8 @@ public class RespawnMenuHandler implements Listener {
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(),
                 RespawnMenuHolder.ViewType.SHARE_INVITE_LIST, page, null);
         Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
-                plugin.message("bed-share-invites-title", "Share requests"));
+                sharingModeMessage("bed-share-invites-title", "Share requests", "bed-transfer-invites-title",
+                        "Transfer requests"));
         holder.setInventory(inventory);
 
         renderShareInviteListMenu(inventory, invites, page, totalPages);
@@ -570,7 +582,8 @@ public class RespawnMenuHandler implements Listener {
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(),
                 RespawnMenuHolder.ViewType.SHARE_INVITE_ACTIONS, listPage, invite.inviteId().toString());
         Inventory inventory = Bukkit.createInventory(holder, ACTION_SIZE,
-                plugin.message("bed-share-invite-actions-title", "Share request"));
+                inviteModeMessage(invite, "bed-share-invite-actions-title", "Share request",
+                        "bed-transfer-invite-actions-title", "Transfer request"));
         holder.setInventory(inventory);
 
         renderShareInviteActionMenu(inventory, invite);
@@ -612,8 +625,9 @@ public class RespawnMenuHandler implements Listener {
                     ChatColor.GOLD + plugin.message("manage-menu-page", "Beds {1}/{2}")
                             .replace("{1}", Integer.toString(page + 1))
                             .replace("{2}", Integer.toString(totalPages)),
-                    List.of(ChatColor.GRAY + plugin.message("manage-menu-prompt",
-                            "Click a bed to rename, remove, or share it."))));
+                    List.of(ChatColor.GRAY + sharingModeMessage("manage-menu-prompt",
+                            "Click a bed to rename, remove, or share it.", "manage-menu-prompt-transfer",
+                            "Click a bed to rename, remove, or transfer it."))));
             inventory.setItem(PRIMARY_ACTION_SLOT, createControlItem(Material.BARRIER,
                     ChatColor.RED + plugin.message("manage-menu-close", "Close menu"),
                     List.of(ChatColor.GRAY + plugin.message("manage-menu-close-lore",
@@ -667,7 +681,9 @@ public class RespawnMenuHandler implements Listener {
         }
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + plugin.message("bed-share-prompt", "Choose a player to receive a share request."));
+        lore.add(ChatColor.GRAY + sharingModeMessage("bed-share-prompt",
+                "Choose a player to receive a share request.", "bed-transfer-prompt",
+                "Choose a player to receive a transfer request."));
         if (candidates.isEmpty()) {
             lore.add(ChatColor.RED + plugin.message("bed-share-no-players", "No other known players are available."));
         }
@@ -706,8 +722,9 @@ public class RespawnMenuHandler implements Listener {
                 ChatColor.GOLD + plugin.message("bed-share-invites-page", "Requests {1}/{2}")
                         .replace("{1}", Integer.toString(page + 1))
                         .replace("{2}", Integer.toString(totalPages)),
-                List.of(ChatColor.GRAY + plugin.message("bed-share-invites-prompt",
-                        "Choose a share request to review."))));
+                List.of(ChatColor.GRAY + sharingModeMessage("bed-share-invites-prompt",
+                        "Choose a share request to review.", "bed-transfer-invites-prompt",
+                        "Choose a transfer request to review."))));
         inventory.setItem(PRIMARY_ACTION_SLOT, createControlItem(Material.ARROW,
                 ChatColor.YELLOW + plugin.message("bed-action-back", "Back to points"),
                 List.of(ChatColor.GRAY + plugin.message("bed-share-invites-back-lore",
@@ -725,10 +742,13 @@ public class RespawnMenuHandler implements Listener {
         inventory.setItem(INVITE_PREVIEW_SLOT, createShareInvitePreviewItem(invite));
         inventory.setItem(INVITE_ACCEPT_SLOT, createActionItem(Material.LIME_CONCRETE, true,
                 plugin.message("bed-share-invite-accept", "Accept"),
-                plugin.message("bed-share-invite-accept-lore", "Add this shared respawn point to your list.")));
+                inviteModeMessage(invite, "bed-share-invite-accept-lore",
+                        "Add this shared respawn point to your list.", "bed-transfer-invite-accept-lore",
+                        "Add this transferred respawn point to your list.")));
         inventory.setItem(INVITE_DENY_SLOT, createActionItem(Material.RED_CONCRETE, true,
                 plugin.message("bed-share-invite-deny", "Deny"),
-                plugin.message("bed-share-invite-deny-lore", "Decline this share request.")));
+                inviteModeMessage(invite, "bed-share-invite-deny-lore", "Decline this share request.",
+                        "bed-transfer-invite-deny-lore", "Decline this transfer request.")));
         inventory.setItem(INVITE_BACK_SLOT, createControlItem(Material.ARROW,
                 ChatColor.YELLOW + plugin.message("bed-action-back", "Back to points"), List.of()));
     }
@@ -804,13 +824,15 @@ public class RespawnMenuHandler implements Listener {
     private static ItemStack createShareActionItem(BedMenuEntry entry) {
         if (entry.status() == BedStatus.MISSING) {
             return createActionItem(Material.GRAY_DYE, false,
-                    plugin.message("bed-action-share", "Share bed"),
+                    sharingModeMessage("bed-action-share", "Share bed", "bed-action-transfer", "Transfer point"),
                     plugin.message("bed-action-unavailable-lore", "This action is unavailable for missing beds."));
         }
 
         return createActionItem(Material.PLAYER_HEAD, true,
-                plugin.message("bed-action-share", "Share bed"),
-                plugin.message("bed-action-share-lore", "Invite another player to accept this saved respawn point."));
+                sharingModeMessage("bed-action-share", "Share bed", "bed-action-transfer", "Transfer point"),
+                sharingModeMessage("bed-action-share-lore",
+                        "Invite another player to accept this saved respawn point.", "bed-action-transfer-lore",
+                        "Invite another player to accept this saved respawn point transfer."));
     }
 
     private static ItemStack createActionItem(Material material, boolean enabled, String name, String loreLine) {
@@ -829,8 +851,9 @@ public class RespawnMenuHandler implements Listener {
         meta.setOwningPlayer(target);
         meta.setDisplayName((target.isOnline() ? ChatColor.GREEN : ChatColor.RED) + getOfflinePlayerName(target));
         hideMenuTooltipDetails(meta);
-        meta.setLore(List.of(ChatColor.GRAY + plugin.message("bed-share-click",
-                "Click to send this player a share request.")));
+        meta.setLore(List.of(ChatColor.GRAY + sharingModeMessage("bed-share-click",
+                "Click to send this player a share request.", "bed-transfer-click",
+                "Click to send this player a transfer request.")));
         meta.getPersistentDataContainer().set(PluginKeys.sharePlayer(), PersistentDataType.STRING,
                 target.getUniqueId().toString());
         item.setItemMeta(meta);
@@ -840,10 +863,12 @@ public class RespawnMenuHandler implements Listener {
     private static ItemStack createShareInvitesButton(int inviteCount) {
         String count = Integer.toString(inviteCount);
         return createControlItem(Material.WRITABLE_BOOK,
-                ChatColor.YELLOW + plugin.message("bed-share-invites-button", "Share requests ({1})")
+                ChatColor.YELLOW + sharingModeMessage("bed-share-invites-button", "Share requests ({1})",
+                        "bed-transfer-invites-button", "Transfer requests ({1})")
                         .replace("{1}", count),
-                List.of(ChatColor.GRAY + plugin.message("bed-share-invites-button-lore",
-                        "Review pending share requests.")));
+                List.of(ChatColor.GRAY + sharingModeMessage("bed-share-invites-button-lore",
+                        "Review pending share requests.", "bed-transfer-invites-button-lore",
+                        "Review pending transfer requests.")));
     }
 
     private static ItemStack createShareInviteItem(ShareInvite invite) {
@@ -869,17 +894,18 @@ public class RespawnMenuHandler implements Listener {
         Material material = bedData == null ? Material.BARRIER : bedData.getBedMaterial();
         ItemStack item = new ItemStack(material, 1);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.YELLOW + plugin.message("bed-share-invite-preview", "Shared respawn point"));
+        meta.setDisplayName(ChatColor.YELLOW + inviteModeMessage(invite, "bed-share-invite-preview",
+                "Shared respawn point", "bed-transfer-invite-preview", "Transferred respawn point"));
         hideMenuTooltipDetails(meta);
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.BLUE + plugin.message("bed-shared-by-label", "Shared By: {1}")
-                .replace("{1}", getInviteSenderName(invite)));
+        lore.add(ChatColor.BLUE + transferredByLabel(invite, getInviteSenderName(invite)));
         lore.add(ChatColor.GRAY + plugin.message("bed-share-invite-expires", "Expires in {1}.")
                 .replace("{1}", formatRemaining(invite.expiresAt())));
         if (bedData == null) {
-            lore.add(ChatColor.RED + plugin.message("bed-share-invite-unavailable",
-                    "That shared respawn point is no longer available."));
+            lore.add(ChatColor.RED + inviteModeMessage(invite, "bed-share-invite-unavailable",
+                    "That shared respawn point is no longer available.", "bed-transfer-invite-unavailable",
+                    "That transferred respawn point is no longer available."));
         } else {
             if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
                 lore.add(ChatColor.DARK_PURPLE + bedData.getBedWorld().toUpperCase());
@@ -1018,10 +1044,12 @@ public class RespawnMenuHandler implements Listener {
     private static void denyShareInvite(Player receiver, ShareInvite invite) {
         plugin.getPlayerBedStore().deleteShareInvite(invite.inviteId());
         String senderName = getInviteSenderName(invite);
-        receiver.sendMessage(ChatColor.YELLOW + plugin.message("bed-share-invite-denied",
-                "Denied {1}'s shared respawn point request.").replace("{1}", senderName));
-        notifyPlayerOrQueue(invite.senderId(), ChatColor.YELLOW + plugin.message("bed-share-invite-denied-owner",
-                "{1} denied your shared respawn point request.")
+        receiver.sendMessage(ChatColor.YELLOW + inviteModeMessage(invite, "bed-share-invite-denied",
+                "Denied {1}'s shared respawn point request.", "bed-transfer-invite-denied",
+                "Denied {1}'s transferred respawn point request.").replace("{1}", senderName));
+        notifyPlayerOrQueue(invite.senderId(), ChatColor.YELLOW + inviteModeMessage(invite,
+                "bed-share-invite-denied-owner", "{1} denied your shared respawn point request.",
+                "bed-transfer-invite-denied-owner", "{1} denied your transferred respawn point request.")
                 .replace("{1}", getOfflinePlayerName(receiver)));
     }
 
@@ -1057,13 +1085,15 @@ public class RespawnMenuHandler implements Listener {
                 receiver.getUniqueId(), receiverName, bedUuid, plugin.getConfig().getBoolean("exclusive-bed"),
                 expiresAt);
         if (invite == null) {
-            owner.sendMessage(ChatColor.RED + plugin.message("bed-share-invite-create-failed",
-                    "Could not create that share request."));
+            owner.sendMessage(ChatColor.RED + sharingModeMessage("bed-share-invite-create-failed",
+                    "Could not create that share request.", "bed-transfer-invite-create-failed",
+                    "Could not create that transfer request."));
             return false;
         }
 
-        owner.sendMessage(ChatColor.YELLOW + plugin.message("bed-share-invite-sent",
-                "Share request sent to {1}. It expires in {2}.")
+        owner.sendMessage(ChatColor.YELLOW + inviteModeMessage(invite, "bed-share-invite-sent",
+                "Share request sent to {1}. It expires in {2}.", "bed-transfer-invite-sent",
+                "Transfer request sent to {1}. It expires in {2}.")
                 .replace("{1}", receiverName)
                 .replace("{2}", formatRemaining(expiresAt)));
 
@@ -1085,8 +1115,9 @@ public class RespawnMenuHandler implements Listener {
     private static boolean isUsableInvite(Player receiver, ShareInvite invite) {
         if (invite == null || invite.isExpired(System.currentTimeMillis())
                 || !invite.targetId().equals(receiver.getUniqueId())) {
-            receiver.sendMessage(ChatColor.RED + plugin.message("bed-share-invite-not-found",
-                    "Share request not found or expired."));
+            receiver.sendMessage(ChatColor.RED + inviteModeMessage(invite, "bed-share-invite-not-found",
+                    "Share request not found or expired.", "bed-transfer-invite-not-found",
+                    "Transfer request not found or expired."));
             return false;
         }
 
@@ -1099,8 +1130,9 @@ public class RespawnMenuHandler implements Listener {
         if (ownerBedsData == null || ownerBedsData.getPlayerBedData() == null
                 || !ownerBedsData.hasBed(invite.bedUuid())) {
             plugin.getPlayerBedStore().deleteShareInvite(invite.inviteId());
-            receiver.sendMessage(ChatColor.RED + plugin.message("bed-share-invite-unavailable",
-                    "That shared respawn point is no longer available."));
+            receiver.sendMessage(ChatColor.RED + inviteModeMessage(invite, "bed-share-invite-unavailable",
+                    "That shared respawn point is no longer available.", "bed-transfer-invite-unavailable",
+                    "That transferred respawn point is no longer available."));
             return false;
         }
 
@@ -1123,20 +1155,31 @@ public class RespawnMenuHandler implements Listener {
             plugin.getPlayerBedStore().deleteShareInvitesForBed(invite.bedUuid());
         }
 
-        receiver.sendMessage(ChatColor.YELLOW + plugin.message("bed-share-invite-accepted",
-                "Accepted {1}'s shared respawn point.").replace("{1}", ownerName));
-        notifyPlayerOrQueue(invite.senderId(), ChatColor.YELLOW + plugin.message("bed-share-invite-accepted-owner",
-                "{1} accepted your shared respawn point request.")
+        receiver.sendMessage(ChatColor.YELLOW + inviteModeMessage(invite, "bed-share-invite-accepted",
+                "Accepted {1}'s shared respawn point.", "bed-transfer-invite-accepted",
+                "Accepted {1}'s transferred respawn point.").replace("{1}", ownerName));
+        notifyPlayerOrQueue(invite.senderId(), ChatColor.YELLOW + inviteModeMessage(invite,
+                "bed-share-invite-accepted-owner", "{1} accepted your shared respawn point request.",
+                "bed-transfer-invite-accepted-owner", "{1} accepted your transferred respawn point request.")
                 .replace("{1}", getOfflinePlayerName(receiver)));
         return true;
     }
 
     private static void sendShareInviteNotification(Player receiver, int inviteCount) {
-        receiver.sendMessage(ChatColor.YELLOW + plugin.message("bed-share-invite-received",
-                "You have {1} pending share requests.")
+        receiver.sendMessage(ChatColor.YELLOW + sharingModeMessage("bed-share-invite-received",
+                "You have {1} pending share requests.", "bed-transfer-invite-received",
+                "You have {1} pending transfer requests.")
                 .replace("{1}", Integer.toString(inviteCount)));
-        receiver.sendMessage(ChatColor.GRAY + plugin.message("bed-share-invite-actions",
-                "Open /beds and review Share Requests."));
+        receiver.sendMessage(Component.text(stripColors(sharingModeMessage("bed-share-invite-actions",
+                        "Click here to review Share Requests.", "bed-transfer-invite-actions",
+                        "Click here to review Transfer Requests.")))
+                .color(NamedTextColor.AQUA)
+                .decorate(TextDecoration.UNDERLINED)
+                .clickEvent(ClickEvent.runCommand(PENDING_REQUESTS_COMMAND))
+                .hoverEvent(HoverEvent.showText(Component.text(stripColors(sharingModeMessage(
+                        "bed-share-invite-actions-hover", "Open pending share requests.",
+                        "bed-transfer-invite-actions-hover", "Open pending transfer requests.")))
+                        .color(NamedTextColor.YELLOW))));
     }
 
     private static void notifyPlayerOrQueue(UUID playerId, String message) {
@@ -1155,6 +1198,31 @@ public class RespawnMenuHandler implements Listener {
         }
 
         return getOfflinePlayerName(Bukkit.getOfflinePlayer(invite.senderId()));
+    }
+
+    private static String sharingModeMessage(String shareKey, String shareFallback, String transferKey,
+            String transferFallback) {
+        return plugin.sharingModeMessage(shareKey, shareFallback, transferKey, transferFallback);
+    }
+
+    private static String inviteModeMessage(ShareInvite invite, String shareKey, String shareFallback,
+            String transferKey, String transferFallback) {
+        return plugin.sharingModeMessage(isTransferInvite(invite), shareKey, shareFallback, transferKey,
+                transferFallback);
+    }
+
+    private static boolean isTransferInvite(ShareInvite invite) {
+        return invite != null ? invite.transferOwnership() : plugin.usesTransferSharingLanguage();
+    }
+
+    private static String transferredByLabel(String playerName) {
+        return sharingModeMessage("bed-shared-by-label", "Shared By: {1}", "bed-transferred-by-label",
+                "Transferred By: {1}").replace("{1}", playerName);
+    }
+
+    private static String transferredByLabel(ShareInvite invite, String playerName) {
+        return inviteModeMessage(invite, "bed-shared-by-label", "Shared By: {1}", "bed-transferred-by-label",
+                "Transferred By: {1}").replace("{1}", playerName);
     }
 
     private static List<ShareInvite> getPendingShareInvites(Player player) {
@@ -1276,8 +1344,25 @@ public class RespawnMenuHandler implements Listener {
 
             candidates.add(target);
         }
-        candidates.sort(Comparator.comparing(RespawnMenuHandler::getOfflinePlayerName, String.CASE_INSENSITIVE_ORDER));
+        candidates.sort(offlinePlayerListComparator());
         return candidates;
+    }
+
+    private static Comparator<OfflinePlayer> offlinePlayerListComparator() {
+        return Comparator.comparing((OfflinePlayer player) -> !isOnlinePlayer(player))
+                .thenComparing(RespawnMenuHandler::getOfflinePlayerName, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(player -> player == null ? "" : player.getUniqueId().toString());
+    }
+
+    private static Comparator<ShareInvite> shareInviteSenderComparator() {
+        return Comparator.comparing((ShareInvite invite) -> !isOnlinePlayer(Bukkit.getOfflinePlayer(invite.senderId())))
+                .thenComparing(RespawnMenuHandler::getInviteSenderName, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(invite -> invite.senderId().toString())
+                .thenComparingLong(ShareInvite::createdAt);
+    }
+
+    private static boolean isOnlinePlayer(OfflinePlayer player) {
+        return player != null && player.isOnline();
     }
 
     private static String getOfflinePlayerName(OfflinePlayer player) {
@@ -1385,8 +1470,7 @@ public class RespawnMenuHandler implements Listener {
             hasMetadata = true;
         }
         if (entry.bedData().hasSharedByName()) {
-            lore.add(ChatColor.BLUE + plugin.message("bed-shared-by-label", "Shared By: {1}")
-                    .replace("{1}", entry.bedData().getSharedByName()));
+            lore.add(ChatColor.BLUE + transferredByLabel(entry.bedData().getSharedByName()));
             hasMetadata = true;
         }
         if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {

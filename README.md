@@ -1,61 +1,120 @@
+<p align="center">
+  <img src="docs/branding/rustbeds-banner.png" alt="RustBeds banner" width="855">
+</p>
+
+<p align="center">
+  <strong>Saved beds and respawn anchors for Paper servers.</strong><br>
+  Let players choose where they respawn while keeping setup simple for server staff.
+</p>
+
+<p align="center">
+  <a href="https://github.com/HappySpleen/RustBeds/releases">Releases</a> |
+  <a href="docs/wiki/Home.md">Docs</a> |
+  <a href="CHANGELOG.md">Changelog</a> |
+  <a href="docs/wiki/Migration-from-MultipleBedSpawn.md">Migration guide</a>
+</p>
+
 # RustBeds
-RustBeds is a Paper plugin that lets players save beds and respawn anchors, then choose which saved respawn point they want to use. This project was previously published as `MultipleBedSpawn`.
 
-[Legacy Spigot page](https://www.spigotmc.org/resources/multiple-bed-spawn.107057)
+RustBeds is a Paper plugin that turns Minecraft's single saved bed into a full respawn-point system. Players can register beds and, when enabled, Nether respawn anchors, then choose which saved point to use after death.
 
-[Legacy Hangar page](https://hangar.papermc.io/GabiJ/MultipleBedSpawn)
+The main player workflow lives in one `/beds` menu for managing, renaming, sharing, removing, and choosing primary respawn points. Staff get a matching admin menu for support work, including browsing saved points, teleporting players, granting points, and reloading plugin settings.
 
-## How it works
+RustBeds was previously published as `MultipleBedSpawn`. Current releases use the new name, data folder, command flow, and `rustbeds.*` permission nodes while keeping legacy upgrade paths where they matter.
 
-When a player dies, RustBeds opens a respawn menu if that player has at least one saved respawn point. Players can also run `/beds` at any time to manage their saved points, set a primary point, share points, or remove them.
+## Highlights
 
-Players register a bed or respawn anchor by interacting with it in game, and the plugin stores those points in `respawn-points.db`.
+- Saved beds and respawn anchors with one primary point per player
+- Death respawn menu with configurable delay, timeout, and default-spawn fallback
+- Safe-location validation that blocks obstructed saved points before teleporting
+- Cooldowns, per-player saved-point limits, world filters, linked-world visibility, sharing, and exclusive ownership
+- Admin `/beds admin` menus for renaming, removing, teleporting to, and granting saved points
+- SQLite persistence in `plugins/RustBeds/respawn-points.db`
+- Optional Multiverse-Core teleport integration with vanilla teleport fallback
+- Bundled language files for `enUS`, `deDE`, `esES`, `frFR`, `ptBR`, `ruRU`, `svSE`, and `zhCH`
 
-![image](https://user-images.githubusercontent.com/69057368/210019366-3a981d52-79a2-4bfd-9217-0aac37918243.png)
+## Requirements
 
-## Features
+- Paper `1.21.11`
+- Java `21`
+- Optional: Multiverse-Core, only when `teleport-provider: "multiverse"` is configured
 
-- Unified `/beds` workflow for player management, admin browsing, and config reloads
-- Saved beds and respawn anchors with primary-point selection
-- Safe respawn checks that block obstructed saved points
-- Cooldowns, sharing, exclusive ownership, and offline destroyed-point notifications
-- Multiverse-compatible teleports with a vanilla fallback
-- Config-driven world filters and respawn timing controls
-- SQLite-backed persistence in `respawn-points.db`
+## Installation
 
-## Configuration
+1. Download the latest `RustBeds <version>.jar` from [GitHub Releases](https://github.com/HappySpleen/RustBeds/releases).
+2. Stop your server.
+3. Place the jar in the server's `plugins` folder.
+4. Start the server.
+5. Review `plugins/RustBeds/config.yml`.
+6. Give staff `rustbeds.admin` if they should use `/beds admin` or `/beds reload`.
 
-The shipped [`config.yml`](src/main/resources/config.yml) documents every option inline. Key settings include:
+See the full [Installation](docs/wiki/Installation.md) page for update notes, folder layout, and source-build details.
 
-- `lang` to select the bundled language file
-- `max-beds` and `bed-cooldown` to control saved-point limits
-- `allowlist` / `denylist` and `link-worlds` to control world visibility
-- `spawn-on-sky`, `respawn-menu-open-delay-ticks`, and `respawn-menu-timeout-seconds` for respawn flow timing
-- `exclusive-bed`, `bed-sharing`, and `respawn-anchors-enabled` for gameplay rules
-- `command-on-spawn`, `run-command-as-player`, and `teleport-provider` for integration behavior
+## Commands
 
-Bundled translations currently include `enUS`, `deDE`, `esES`, `frFR`, `ptBR`, `ruRU`, `svSE`, and `zhCH`.
+| Command | Sender | Permission | Purpose |
+| --- | --- | --- | --- |
+| `/beds` | Player | None | Opens the player's saved respawn-point menu. |
+| `/beds admin` | Player | `rustbeds.admin` | Opens the staff respawn-point browser. |
+| `/beds reload` | Player or console | `rustbeds.admin` | Reloads config, language files, and storage handles. |
 
 ## Permissions
 
-- `rustbeds.skipcooldown` lets players bypass saved-point cooldowns
-- `rustbeds.maxcount.{num}` lets players override the configured saved-point limit
-- `rustbeds.admin` allows `/beds admin` and `/beds reload`
+| Permission | Default | Purpose |
+| --- | --- | --- |
+| `rustbeds.admin` | Operators | Allows `/beds admin` and `/beds reload`. |
+| `rustbeds.skipcooldown` | False | Bypasses saved-point cooldowns. |
+| `rustbeds.maxcount.<num>` | False | Overrides `max-beds` for a player, up to the plugin cap of 53. |
 
-Legacy `multiplebedspawn.*` permission nodes still work so existing server setups can upgrade without rewriting permissions immediately.
+Legacy `multiplebedspawn.*` aliases still work for servers upgrading from MultipleBedSpawn. New setups should use the `rustbeds.*` nodes.
 
-## Versioning
+## Configuration
 
-RustBeds now follows Semantic Versioning starting at `1.0.0`, and release notes are tracked in [`CHANGELOG.md`](CHANGELOG.md) using Keep a Changelog.
+The shipped [`config.yml`](src/main/resources/config.yml) documents each option inline. The most important areas are:
+
+- `max-beds` and `bed-cooldown` for player limits and reuse timing
+- `allowlist`, `denylist`, and `link-worlds` for world visibility
+- `spawn-on-sky`, `respawn-menu-open-delay-ticks`, and `respawn-menu-timeout-seconds` for the death-menu flow
+- `exclusive-bed`, `bed-sharing`, and `respawn-anchors-enabled` for gameplay rules
+- `command-on-spawn`, `run-command-as-player`, and `teleport-provider` for integration behavior
+
+For server-owner explanations, see [Configuration](docs/wiki/Configuration.md) and [Respawn Flow and Safety](docs/wiki/Respawn-Flow-and-Safety.md).
+
+## Documentation
+
+| Page | Contents |
+| --- | --- |
+| [Player Guide](docs/wiki/Player-Guide.md) | Saving beds and anchors, using `/beds`, sharing, and primary points. |
+| [Admin Guide](docs/wiki/Admin-Guide.md) | Staff menus, giving points, reload behavior, and operational notes. |
+| [Commands and Permissions](docs/wiki/Commands-and-Permissions.md) | Command table, permissions, and legacy aliases. |
+| [Languages](docs/wiki/Languages.md) | Bundled translations and how language selection works. |
+| [Migration from MultipleBedSpawn](docs/wiki/Migration-from-MultipleBedSpawn.md) | Upgrade behavior for older installs. |
+| [Releases and Building](docs/wiki/Releases-and-Building.md) | Maven builds, release artifacts, and versioning. |
+| [Branding](docs/wiki/Branding.md) | Project logos, banners, icons, and usage notes. |
+
+## Build From Source
+
+Builds require Java 21 and Maven:
+
+```bash
+mvn -B -ntp clean package
+```
+
+The jar is written to:
+
+```text
+target/RustBeds-<version>.jar
+```
+
+Release notes are tracked in [`CHANGELOG.md`](CHANGELOG.md) using Keep a Changelog formatting, and RustBeds follows Semantic Versioning starting at `1.0.0`.
+
+## Legacy Project Links
+
+RustBeds began as MultipleBedSpawn. These pages are kept for historical reference:
+
+- [Legacy Spigot page](https://www.spigotmc.org/resources/multiple-bed-spawn.107057)
+- [Legacy Hangar page](https://hangar.papermc.io/GabiJ/MultipleBedSpawn)
 
 ## Contributing
 
-To add or update a translation:
-
-- Fork the repository
-- Copy `src/main/resources/languages/enUS.yml`
-- Rename it to the language you are translating
-- Replace the strings inside the file
-- Open a pull request
-
-Bug reports and feature requests are welcome through the repository issue tracker.
+Bug reports, feature requests, and translation updates are welcome through the repository issue tracker. For translations, copy `src/main/resources/languages/enUS.yml`, rename it for the target locale, update the strings, and open a pull request.

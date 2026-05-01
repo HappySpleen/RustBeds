@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-05-01
+
+### Fixed
+- Fixed the `/beds admin` selected respawn point action menu so it shows the player's saved bed name, such as `Home`, instead of only a generic admin action title.
+
 ## [1.1.2] - 2026-04-29
 
 ### Fixed

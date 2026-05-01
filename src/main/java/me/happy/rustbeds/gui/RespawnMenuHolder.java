@@ -48,6 +48,8 @@ public final class RespawnMenuHolder implements InventoryHolder {
         RESPAWN_LIST,
         MANAGE_LIST,
         ACTIONS,
-        SHARE_LIST
+        SHARE_LIST,
+        SHARE_INVITE_LIST,
+        SHARE_INVITE_ACTIONS
     }
 }

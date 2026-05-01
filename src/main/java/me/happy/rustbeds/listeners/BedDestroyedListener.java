@@ -89,6 +89,7 @@ public class BedDestroyedListener implements Listener {
                 owner.sendMessage(buildDestroyedMessage(removedBed, bed.getLocation()));
             }
         }
+        plugin.getPlayerBedStore().deleteShareInvitesForBed(bedUuid);
 
         if (bed.getType() == org.bukkit.Material.RESPAWN_ANCHOR) {
             plugin.getRespawnAnchorStore().clearAnchor(bed.getLocation());

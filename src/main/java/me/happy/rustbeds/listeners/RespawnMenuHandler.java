@@ -44,6 +44,8 @@ import static me.happy.rustbeds.utils.PlayerUtils.loadPlayerBedsData;
 import static me.happy.rustbeds.utils.PlayerUtils.savePlayerBedsData;
 import static me.happy.rustbeds.utils.PlayerUtils.setPropPlayer;
 import static me.happy.rustbeds.utils.PlayerUtils.undoPropPlayer;
+import static me.happy.rustbeds.utils.RespawnSafetyUtils.findSafeRespawnLocation;
+import static me.happy.rustbeds.utils.RespawnSafetyUtils.hasSafeRespawnLocation;
 import static me.happy.rustbeds.utils.RunCommandUtils.runCommandOnSpawn;
 import static me.happy.rustbeds.utils.TeleportUtils.teleport;
 
@@ -196,8 +198,7 @@ public class RespawnMenuHandler implements Listener {
                 ItemMeta meta = clickedItem.getItemMeta();
                 PersistentDataContainer data = meta.getPersistentDataContainer();
                 String uuid = data.get(PluginKeys.uuid(), PersistentDataType.STRING);
-                String status = data.get(PluginKeys.menuStatus(), PersistentDataType.STRING);
-                if (uuid == null || status == null || !BedStatus.AVAILABLE.name().equalsIgnoreCase(status)) {
+                if (uuid == null || data.get(PluginKeys.menuStatus(), PersistentDataType.STRING) == null) {
                     return;
                 }
 
@@ -209,6 +210,17 @@ public class RespawnMenuHandler implements Listener {
 
                 BedData bedData = playerBedsData.getPlayerBedData().get(uuid);
                 if (bedData == null || !isRegisteredRespawnPointPresent(bedData, uuid)) {
+                    showListMenu(player, holder.getPage());
+                    return;
+                }
+
+                BedStatus currentStatus = resolveStatus(player, uuid, bedData);
+                if (currentStatus == BedStatus.OBSTRUCTED) {
+                    sendObstructedMessage(player);
+                    showListMenu(player, holder.getPage());
+                    return;
+                }
+                if (currentStatus != BedStatus.AVAILABLE) {
                     showListMenu(player, holder.getPage());
                     return;
                 }
@@ -540,7 +552,7 @@ public class RespawnMenuHandler implements Listener {
         meta.setDisplayName(switch (entry.status()) {
             case AVAILABLE -> ChatColor.GREEN + entry.displayName();
             case COOLDOWN -> ChatColor.GOLD + entry.displayName();
-            case DEPLETED, DISABLED, MISSING -> ChatColor.RED + entry.displayName();
+            case DEPLETED, DISABLED, MISSING, OBSTRUCTED -> ChatColor.RED + entry.displayName();
         });
         hideMenuTooltipDetails(meta);
         meta.setLore(buildBedLore(entry, mode == SessionMode.RESPAWN));
@@ -575,6 +587,8 @@ public class RespawnMenuHandler implements Listener {
                     "Respawn anchors are disabled in config."));
             case MISSING -> lore.add(ChatColor.RED
                     + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
+            case OBSTRUCTED -> lore.add(ChatColor.RED + plugin.message("respawn-menu-bed-obstructed",
+                    "Your bed is obstructed. Choose a different registered respawn point."));
         }
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -648,7 +662,7 @@ public class RespawnMenuHandler implements Listener {
     private static Material getBedDisplayMaterial(BedMenuEntry entry) {
         return switch (entry.status()) {
             case COOLDOWN -> Material.CLOCK;
-            case DEPLETED, DISABLED, MISSING -> Material.BARRIER;
+            case DEPLETED, DISABLED, MISSING, OBSTRUCTED -> Material.BARRIER;
             case AVAILABLE -> entry.bedData().getBedMaterial();
         };
     }
@@ -687,6 +701,13 @@ public class RespawnMenuHandler implements Listener {
             return;
         }
 
+        Location safeRespawnLocation = findSafeRespawnLocation(bedData.getBedLocation(), respawnLocation);
+        if (safeRespawnLocation == null) {
+            sendObstructedMessage(player);
+            showListMenu(player, getListPage(player));
+            return;
+        }
+
         cancelSession(player.getUniqueId());
 
         PersistentDataContainer playerData = player.getPersistentDataContainer();
@@ -697,7 +718,7 @@ public class RespawnMenuHandler implements Listener {
         playerData.remove(PluginKeys.spawnLoc());
 
         undoPropPlayer(player);
-        if (!teleport(player, respawnLocation)) {
+        if (!teleport(player, safeRespawnLocation)) {
             Bukkit.getScheduler().runTask(plugin, () -> sendPlayerToDefaultRespawn(player, false));
             return;
         }
@@ -844,12 +865,23 @@ public class RespawnMenuHandler implements Listener {
             if (getRespawnAnchorCharges(bedData) <= 0) {
                 return BedStatus.DEPLETED;
             }
-            return BedStatus.AVAILABLE;
+            return resolveSafetyStatus(bedData);
         }
         if (!plugin.hasSkipCooldownPermission(player) && bedData.getBedCooldown() > System.currentTimeMillis()) {
             return BedStatus.COOLDOWN;
         }
-        return BedStatus.AVAILABLE;
+        return resolveSafetyStatus(bedData);
+    }
+
+    private static BedStatus resolveSafetyStatus(BedData bedData) {
+        return hasSafeRespawnLocation(bedData.getBedLocation(), bedData.getSpawnLocation())
+                ? BedStatus.AVAILABLE
+                : BedStatus.OBSTRUCTED;
+    }
+
+    private static void sendObstructedMessage(Player player) {
+        player.sendMessage(ChatColor.RED + plugin.message("respawn-menu-bed-obstructed",
+                "Your bed is obstructed. Choose a different registered respawn point."));
     }
 
     private static List<Player> getShareCandidates(Player player) {
@@ -883,6 +915,8 @@ public class RespawnMenuHandler implements Listener {
                         + plugin.message("respawn-anchor-disabled", "Respawn anchors are disabled in config."));
                 case MISSING -> lore.add(ChatColor.RED
                         + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
+                case OBSTRUCTED -> lore.add(ChatColor.RED + plugin.message("respawn-menu-bed-obstructed",
+                        "Your bed is obstructed. Choose a different registered respawn point."));
             }
         } else {
             switch (entry.status()) {
@@ -906,6 +940,11 @@ public class RespawnMenuHandler implements Listener {
                 }
                 case MISSING -> {
                     lore.add(ChatColor.RED + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
+                    lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage", "Click to manage this bed."));
+                }
+                case OBSTRUCTED -> {
+                    lore.add(ChatColor.RED + plugin.message("respawn-menu-bed-obstructed",
+                            "Your bed is obstructed. Choose a different registered respawn point."));
                     lore.add(ChatColor.YELLOW + plugin.message("manage-menu-click-manage", "Click to manage this bed."));
                 }
             }
@@ -944,7 +983,9 @@ public class RespawnMenuHandler implements Listener {
 
     private static boolean hasDynamicEntries(List<BedMenuEntry> entries) {
         for (BedMenuEntry entry : entries) {
-            if (entry.status() == BedStatus.COOLDOWN || entry.bedData().isRespawnAnchor()) {
+            if (entry.status() == BedStatus.COOLDOWN
+                    || entry.status() == BedStatus.OBSTRUCTED
+                    || entry.bedData().isRespawnAnchor()) {
                 return true;
             }
         }
@@ -1086,7 +1127,8 @@ public class RespawnMenuHandler implements Listener {
         COOLDOWN,
         DEPLETED,
         DISABLED,
-        MISSING
+        MISSING,
+        OBSTRUCTED
     }
 
     private record BedMenuEntry(String uuid, BedData bedData, String displayName, BedStatus status,

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-05-01
+
+### Added
+- Added safe-location validation before saved respawn point teleports, with obstructed points blocked until a nearby 1.625-block-tall non-colliding space is available within 2 blocks horizontally and 0.375 blocks vertically.
+
 ## [1.1.4] - 2026-05-01
 
 ### Added

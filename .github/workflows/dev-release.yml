@@ -75,8 +75,8 @@ jobs:
           short_sha="${GITHUB_SHA::7}"
           run_id="${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
           tag="dev-${safe_branch}-${run_id}"
-          artifact="SmartPack-${version}-dev.${run_id}-${safe_branch}-${short_sha}.jar"
-          title="SmartPack ${version} dev build ${run_id} (${branch})"
+          artifact="RustBeds-${version}-dev.${run_id}-${safe_branch}-${short_sha}.jar"
+          title="RustBeds ${version} dev build ${run_id} (${branch})"
 
           cat > dev-release-notes.md <<EOF
           Development build from branch \`$branch\`.
@@ -109,7 +109,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          source_jar="target/smartpack-$VERSION.jar"
+          source_jar="target/RustBeds-$VERSION.jar"
           test -f "$source_jar"
           cp "$source_jar" "$ARTIFACT"
 

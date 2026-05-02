@@ -35,8 +35,8 @@ RustBeds was previously published as `MultipleBedSpawn`. Current releases use th
 
 ## Requirements
 
-- Paper `1.21.11`
-- Java `21`
+- Paper `26.1.2`
+- Java `25`
 - Optional: Multiverse-Core, only when `teleport-provider: "multiverse"` is configured
 
 ## Installation
@@ -95,7 +95,7 @@ For server-owner explanations, see [Configuration](https://github.com/HappySplee
 
 ## Build From Source
 
-Builds require Java 21 and Maven:
+Builds require Java 25 and Maven:
 
 ```bash
 mvn -B -ntp clean package

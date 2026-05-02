@@ -1,7 +1,7 @@
 name: RustBeds
 version: '${project.version}'
 main: me.happy.rustbeds.RustBeds
-api-version: '1.21.11'
+api-version: '26.1.2'
 load: STARTUP
 authors: [HappySpleen]
 description: A plugin that lets players choose which saved respawn point to use.

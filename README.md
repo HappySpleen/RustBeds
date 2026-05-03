@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/branding/rustbeds-banner.png" alt="RustBeds banner" width="855">
+  <img src="docs/branding/rustbeds-logo-primary.png" alt="RustBeds logo" width="938">
 </p>
 
 <p align="center">

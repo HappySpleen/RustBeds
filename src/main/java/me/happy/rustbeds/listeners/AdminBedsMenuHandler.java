@@ -2,8 +2,12 @@ package me.happy.rustbeds.listeners;
 
 import me.happy.rustbeds.RustBeds;
 import me.happy.rustbeds.gui.AdminBedsMenuHolder;
+import me.happy.rustbeds.gui.BedMenuEntry;
+import me.happy.rustbeds.gui.BedStatus;
+import me.happy.rustbeds.gui.RespawnPointMenuLore;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
+import me.happy.rustbeds.utils.PlayerUtils;
 import me.happy.rustbeds.utils.PluginKeys;
 import me.happy.rustbeds.utils.TeleportUtils;
 import org.bukkit.Bukkit;
@@ -17,7 +21,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -32,8 +35,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import static me.happy.rustbeds.gui.MenuItems.createActionItem;
+import static me.happy.rustbeds.gui.MenuItems.createControlItem;
+import static me.happy.rustbeds.gui.MenuItems.fillBottomRow;
+import static me.happy.rustbeds.gui.MenuItems.fillInventory;
+import static me.happy.rustbeds.gui.MenuItems.hideMenuTooltipDetails;
 import static me.happy.rustbeds.utils.BedsUtils.getRespawnAnchorCharges;
-import static me.happy.rustbeds.utils.BedsUtils.getRespawnAnchorMaxCharges;
 import static me.happy.rustbeds.utils.BedsUtils.isRegisteredRespawnPointPresent;
 import static me.happy.rustbeds.utils.BedsUtils.removePlayerBed;
 import static me.happy.rustbeds.utils.PlayerUtils.loadPlayerBedsData;
@@ -293,7 +300,7 @@ public class AdminBedsMenuHandler implements Listener {
                     return;
                 }
 
-                AdminBedMenuInputListener.beginRenamePrompt(admin, ownerId, bedUuid, holder.getPage());
+                BedMenuInputListener.beginRenamePrompt(admin, ownerId, bedUuid, holder.getPage());
                 admin.sendMessage(ChatColor.YELLOW + plugin.message("rename-prompt",
                         "Type the new bed name in chat. Type 'cancel' to abort."));
                 admin.closeInventory();
@@ -324,7 +331,7 @@ public class AdminBedsMenuHandler implements Listener {
             case ACTION_REMOVE_SLOT -> {
                 removePlayerBed(bedUuid, owner);
                 admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-remove-success",
-                        "Removed {1}'s saved bed.").replace("{1}", getOwnerName(owner)));
+                        "Removed {1}'s saved bed.").replace("{1}", PlayerUtils.getOfflinePlayerName(owner)));
                 openOwnerBedsMenu(admin, ownerId, holder.getPage());
             }
             default -> {
@@ -622,7 +629,8 @@ public class AdminBedsMenuHandler implements Listener {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(owner);
-        meta.setDisplayName((owner.isOnline() ? ChatColor.GREEN : ChatColor.RED) + getOwnerName(owner));
+        meta.setDisplayName((owner.isOnline() ? ChatColor.GREEN : ChatColor.RED)
+                + PlayerUtils.getOfflinePlayerName(owner));
         hideMenuTooltipDetails(meta);
         meta.setLore(List.of(
                 ChatColor.GRAY + plugin.message("admin-beds-owner-count", "Beds saved: {1}")
@@ -636,12 +644,11 @@ public class AdminBedsMenuHandler implements Listener {
     }
 
     private static ItemStack createBedListItem(BedMenuEntry entry) {
-        Material material = entry.status() == BedStatus.AVAILABLE ? entry.bedData().getBedMaterial() : Material.BARRIER;
-        ItemStack item = new ItemStack(material, getDisplayAmount(entry));
+        ItemStack item = new ItemStack(entry.displayMaterial(), entry.displayAmount());
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(switch (entry.status()) {
             case AVAILABLE -> ChatColor.GREEN + entry.displayName();
-            case DEPLETED, MISSING -> ChatColor.RED + entry.displayName();
+            case COOLDOWN, DEPLETED, DISABLED, MISSING, OBSTRUCTED -> ChatColor.RED + entry.displayName();
         });
         hideMenuTooltipDetails(meta);
         meta.setLore(buildBedLore(entry));
@@ -651,26 +658,14 @@ public class AdminBedsMenuHandler implements Listener {
     }
 
     private static ItemStack createBedPreviewItem(OfflinePlayer owner, BedMenuEntry entry) {
-        Material material = entry.status() == BedStatus.AVAILABLE ? entry.bedData().getBedMaterial() : Material.BARRIER;
-        ItemStack item = new ItemStack(material, getDisplayAmount(entry));
+        ItemStack item = new ItemStack(entry.displayMaterial(), entry.displayAmount());
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(ChatColor.YELLOW + entry.displayName());
         hideMenuTooltipDetails(meta);
 
         List<String> lore = new ArrayList<>();
         lore.add(formatOwnerLoreName(owner));
-        appendSharedByLore(lore, entry);
-        if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
-            lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
-        }
-        if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-            lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
-        }
-        if (entry.bedData().isRespawnAnchor()) {
-            lore.add(ChatColor.GOLD + plugin.message("respawn-anchor-charges", "Charges: {1}/{2}")
-                    .replace("{1}", Integer.toString(entry.currentCharges()))
-                    .replace("{2}", Integer.toString(entry.maxCharges())));
-        }
+        RespawnPointMenuLore.appendMetadataLore(lore, plugin, entry, false);
         lore.add("");
         switch (entry.status()) {
             case AVAILABLE -> lore.add(ChatColor.GREEN + plugin.message("bed-action-ready", "Ready to manage."));
@@ -702,7 +697,8 @@ public class AdminBedsMenuHandler implements Listener {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(target);
-        meta.setDisplayName((target.isOnline() ? ChatColor.GREEN : ChatColor.RED) + getOwnerName(target));
+        meta.setDisplayName((target.isOnline() ? ChatColor.GREEN : ChatColor.RED)
+                + PlayerUtils.getOfflinePlayerName(target));
         hideMenuTooltipDetails(meta);
         meta.setLore(List.of(ChatColor.GRAY + plugin.message("admin-beds-give-target-click",
                 "Click to give this respawn point to the player.")));
@@ -712,30 +708,8 @@ public class AdminBedsMenuHandler implements Listener {
         return item;
     }
 
-    private static ItemStack createActionItem(Material material, boolean enabled, String name, String loreLine) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName((enabled ? ChatColor.YELLOW : ChatColor.DARK_GRAY) + name);
-        hideMenuTooltipDetails(meta);
-        meta.setLore(List.of((enabled ? ChatColor.GRAY : ChatColor.RED) + loreLine));
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private static ItemStack createControlItem(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
-        hideMenuTooltipDetails(meta);
-        if (!lore.isEmpty()) {
-            meta.setLore(lore);
-        }
-        item.setItemMeta(meta);
-        return item;
-    }
-
     private static boolean teleportPlayerToBed(Player admin, Player target, OfflinePlayer owner, BedMenuEntry entry) {
-        String ownerName = getOwnerName(owner);
+        String ownerName = PlayerUtils.getOfflinePlayerName(owner);
         Location teleportLocation = getSpawnLocation(entry.bedData());
         if (teleportLocation == null || teleportLocation.getWorld() == null) {
             admin.sendMessage(ChatColor.RED + plugin.message("respawn-menu-bed-missing",
@@ -766,8 +740,8 @@ public class AdminBedsMenuHandler implements Listener {
 
     private static boolean grantRespawnPointToPlayer(Player admin, OfflinePlayer target, OfflinePlayer owner,
             String bedUuid) {
-        String ownerName = getOwnerName(owner);
-        String targetName = getOwnerName(target);
+        String ownerName = PlayerUtils.getOfflinePlayerName(owner);
+        String targetName = PlayerUtils.getOfflinePlayerName(target);
         PlayerBedsData ownerBedsData = getPlayerBedsData(owner);
         if (ownerBedsData == null || ownerBedsData.getPlayerBedData() == null || !ownerBedsData.hasBed(bedUuid)) {
             admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
@@ -833,7 +807,7 @@ public class AdminBedsMenuHandler implements Listener {
         for (UUID ownerId : plugin.getPlayerBedStore().getPlayersWithBeds()) {
             owners.add(Bukkit.getOfflinePlayer(ownerId));
         }
-        owners.sort(offlinePlayerListComparator());
+        owners.sort(PlayerUtils.offlinePlayerListComparator());
         return owners;
     }
 
@@ -866,23 +840,13 @@ public class AdminBedsMenuHandler implements Listener {
 
             targets.add(player);
         }
-        targets.sort(offlinePlayerListComparator());
+        targets.sort(PlayerUtils.offlinePlayerListComparator());
         return targets;
-    }
-
-    private static Comparator<OfflinePlayer> offlinePlayerListComparator() {
-        return Comparator.comparing((OfflinePlayer player) -> !isOnlinePlayer(player))
-                .thenComparing(AdminBedsMenuHandler::getOwnerSortName, String.CASE_INSENSITIVE_ORDER)
-                .thenComparing(player -> player == null ? "" : player.getUniqueId().toString());
     }
 
     private static Comparator<Player> onlinePlayerListComparator() {
         return Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(player -> player.getUniqueId().toString());
-    }
-
-    private static boolean isOnlinePlayer(OfflinePlayer player) {
-        return player != null && player.isOnline();
     }
 
     private static List<BedMenuEntry> getOwnerBedEntries(OfflinePlayer owner) {
@@ -903,15 +867,8 @@ public class AdminBedsMenuHandler implements Listener {
         int index = 1;
         for (Map.Entry<String, BedData> entry : sortedBeds) {
             BedData bedData = entry.getValue();
-            String displayName = bedData.hasCustomName()
-                    ? bedData.getBedName()
-                    : plugin.message(bedData.isRespawnAnchor() ? "default-anchor-name" : "default-bed-name",
-                            bedData.isRespawnAnchor() ? "Respawn Anchor {1}" : "Bed {1}")
-                    .replace("{1}", Integer.toString(index));
             BedStatus status = resolveStatus(entry.getKey(), bedData);
-            int currentCharges = bedData.isRespawnAnchor() ? getRespawnAnchorCharges(bedData) : 0;
-            int maxCharges = bedData.isRespawnAnchor() ? getRespawnAnchorMaxCharges(bedData) : 0;
-            entries.add(new BedMenuEntry(entry.getKey(), bedData, displayName, status, currentCharges, maxCharges));
+            entries.add(BedMenuEntry.create(plugin, entry.getKey(), bedData, index, status));
             index++;
         }
         return entries;
@@ -942,27 +899,7 @@ public class AdminBedsMenuHandler implements Listener {
 
     private static List<String> buildBedLore(BedMenuEntry entry) {
         List<String> lore = new ArrayList<>();
-        boolean hasMetadata = false;
-        if (entry.bedData().hasSharedByName()) {
-            lore.add(ChatColor.BLUE + plugin.sharingModeMessage("bed-shared-by-label", "Shared By: {1}",
-                    "bed-transferred-by-label", "Transferred By: {1}")
-                    .replace("{1}", entry.bedData().getSharedByName()));
-            hasMetadata = true;
-        }
-        if (!plugin.getConfig().getBoolean("disable-bed-world-desc")) {
-            lore.add(ChatColor.DARK_PURPLE + entry.bedData().getBedWorld().toUpperCase());
-            hasMetadata = true;
-        }
-        if (!plugin.getConfig().getBoolean("disable-bed-coords-desc")) {
-            lore.add(ChatColor.GRAY + entry.bedData().formatCoords());
-            hasMetadata = true;
-        }
-        if (entry.bedData().isRespawnAnchor()) {
-            lore.add(ChatColor.GOLD + plugin.message("respawn-anchor-charges", "Charges: {1}/{2}")
-                    .replace("{1}", Integer.toString(entry.currentCharges()))
-                    .replace("{2}", Integer.toString(entry.maxCharges())));
-            hasMetadata = true;
-        }
+        boolean hasMetadata = RespawnPointMenuLore.appendMetadataLore(lore, plugin, entry, false);
         if (hasMetadata) {
             lore.add("");
         }
@@ -980,38 +917,8 @@ public class AdminBedsMenuHandler implements Listener {
         return lore;
     }
 
-    private static int getDisplayAmount(BedMenuEntry entry) {
-        if (entry.bedData().isRespawnAnchor() && entry.status() == BedStatus.AVAILABLE) {
-            return Math.max(1, Math.min(64, entry.currentCharges()));
-        }
-
-        return 1;
-    }
-
-    private static String getOwnerName(OfflinePlayer owner) {
-        if (owner == null) {
-            return "Unknown player";
-        }
-
-        Player onlineOwner = owner.getPlayer();
-        if (onlineOwner != null && onlineOwner.getName() != null && !onlineOwner.getName().isBlank()) {
-            return onlineOwner.getName();
-        }
-
-        String ownerName = owner.getName();
-        if (ownerName != null && !ownerName.isBlank()) {
-            return ownerName;
-        }
-
-        return owner.getUniqueId().toString();
-    }
-
-    private static String getOwnerSortName(OfflinePlayer owner) {
-        return getOwnerName(owner);
-    }
-
     private static String formatOwnerNameInline(OfflinePlayer owner, ChatColor surroundingColor) {
-        String ownerName = getOwnerName(owner);
+        String ownerName = PlayerUtils.getOfflinePlayerName(owner);
         if (owner != null && !owner.isOnline()) {
             return ChatColor.RED + ownerName + surroundingColor;
         }
@@ -1020,7 +927,8 @@ public class AdminBedsMenuHandler implements Listener {
     }
 
     private static String formatOwnerLoreName(OfflinePlayer owner) {
-        return (owner != null && !owner.isOnline() ? ChatColor.RED : ChatColor.DARK_PURPLE) + getOwnerName(owner);
+        return (owner != null && !owner.isOnline() ? ChatColor.RED : ChatColor.DARK_PURPLE)
+                + PlayerUtils.getOfflinePlayerName(owner);
     }
 
     private static String formatOwnerBedLabel(OfflinePlayer owner, BedMenuEntry entry) {
@@ -1034,16 +942,6 @@ public class AdminBedsMenuHandler implements Listener {
         }
 
         return title + ": " + entry.displayName();
-    }
-
-    private static void appendSharedByLore(List<String> lore, BedMenuEntry entry) {
-        if (!entry.bedData().hasSharedByName()) {
-            return;
-        }
-
-        lore.add(ChatColor.BLUE + plugin.sharingModeMessage("bed-shared-by-label", "Shared By: {1}",
-                "bed-transferred-by-label", "Transferred By: {1}")
-                .replace("{1}", entry.bedData().getSharedByName()));
     }
 
     private static String getStringData(ItemStack clickedItem, String key) {
@@ -1074,47 +972,4 @@ public class AdminBedsMenuHandler implements Listener {
         }
     }
 
-    private static void fillBottomRow(Inventory inventory) {
-        for (int slot = PAGE_SIZE; slot < LIST_SIZE; slot++) {
-            inventory.setItem(slot, createFillerItem(Material.BLACK_STAINED_GLASS_PANE));
-        }
-    }
-
-    private static void fillInventory(Inventory inventory, Material material, String name) {
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
-            inventory.setItem(slot, createFillerItem(material, name));
-        }
-    }
-
-    private static ItemStack createFillerItem(Material material) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.DARK_GRAY + " ");
-        hideMenuTooltipDetails(meta);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private static ItemStack createFillerItem(Material material, String name) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
-        hideMenuTooltipDetails(meta);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private static void hideMenuTooltipDetails(ItemMeta meta) {
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-    }
-
-    private enum BedStatus {
-        AVAILABLE,
-        DEPLETED,
-        MISSING
-    }
-
-    private record BedMenuEntry(String uuid, BedData bedData, String displayName, BedStatus status,
-                                int currentCharges, int maxCharges) {
-    }
 }

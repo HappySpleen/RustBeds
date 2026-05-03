@@ -7,6 +7,7 @@ import me.happy.rustbeds.models.PlayerBedsData;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -29,7 +30,11 @@ public class BedMenuInputListener implements Listener {
     }
 
     public static void beginRenamePrompt(Player player, String bedUuid, int returnPage) {
-        RENAME_PROMPTS.put(player.getUniqueId(), new RenamePrompt(bedUuid, returnPage));
+        RENAME_PROMPTS.put(player.getUniqueId(), RenamePrompt.player(bedUuid, returnPage));
+    }
+
+    public static void beginRenamePrompt(Player admin, UUID ownerId, String bedUuid, int returnPage) {
+        RENAME_PROMPTS.put(admin.getUniqueId(), RenamePrompt.admin(ownerId, bedUuid, returnPage));
     }
 
     @EventHandler
@@ -52,16 +57,25 @@ public class BedMenuInputListener implements Listener {
     private void handleRenameInput(Player player, RenamePrompt prompt, String input) {
         if (input.equalsIgnoreCase("cancel")) {
             player.sendMessage(ChatColor.YELLOW + plugin.message("rename-prompt-cancelled", "Renaming cancelled."));
-            RespawnMenuHandler.openManageMenu(player, prompt.returnPage());
+            reopenPromptMenu(player, prompt);
             return;
         }
 
         if (input.isBlank()) {
             player.sendMessage(ChatColor.RED + plugin.message("rename-prompt-empty", "Bed name cannot be empty."));
-            RespawnMenuHandler.openManageMenu(player, prompt.returnPage());
+            reopenPromptMenu(player, prompt);
             return;
         }
 
+        if (prompt.isAdminPrompt()) {
+            handleAdminRenameInput(player, prompt, input);
+            return;
+        }
+
+        handlePlayerRenameInput(player, prompt, input);
+    }
+
+    private void handlePlayerRenameInput(Player player, RenamePrompt prompt, String input) {
         PlayerBedsData playerBedsData = loadPlayerBedsData(player);
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             player.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
@@ -84,6 +98,50 @@ public class BedMenuInputListener implements Listener {
         RespawnMenuHandler.openManageMenu(player, prompt.returnPage());
     }
 
-    private record RenamePrompt(String bedUuid, int returnPage) {
+    private void handleAdminRenameInput(Player admin, RenamePrompt prompt, String input) {
+        OfflinePlayer owner = Bukkit.getOfflinePlayer(prompt.ownerId());
+        PlayerBedsData playerBedsData = loadPlayerBedsData(owner);
+        if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
+                    "That player has no registered beds."));
+            AdminBedsMenuHandler.openOwnerMenu(admin, 0);
+            return;
+        }
+
+        BedData bedData = playerBedsData.getPlayerBedData().get(prompt.bedUuid());
+        if (bedData == null) {
+            admin.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
+                    "That player no longer has that bed saved."));
+            AdminBedsMenuHandler.openOwnerBedsMenu(admin, prompt.ownerId(), prompt.returnPage());
+            return;
+        }
+
+        bedData.setBedName(input);
+        savePlayerBedsData(owner, playerBedsData);
+        admin.sendMessage(ChatColor.YELLOW + plugin.renameSuccessMessage(bedData.getRespawnPointType()));
+        AdminBedsMenuHandler.openActionMenu(admin, prompt.ownerId(), prompt.returnPage(), prompt.bedUuid());
+    }
+
+    private void reopenPromptMenu(Player player, RenamePrompt prompt) {
+        if (prompt.isAdminPrompt()) {
+            AdminBedsMenuHandler.openActionMenu(player, prompt.ownerId(), prompt.returnPage(), prompt.bedUuid());
+            return;
+        }
+
+        RespawnMenuHandler.openManageMenu(player, prompt.returnPage());
+    }
+
+    private record RenamePrompt(UUID ownerId, String bedUuid, int returnPage) {
+        static RenamePrompt player(String bedUuid, int returnPage) {
+            return new RenamePrompt(null, bedUuid, returnPage);
+        }
+
+        static RenamePrompt admin(UUID ownerId, String bedUuid, int returnPage) {
+            return new RenamePrompt(ownerId, bedUuid, returnPage);
+        }
+
+        boolean isAdminPrompt() {
+            return ownerId != null;
+        }
     }
 }

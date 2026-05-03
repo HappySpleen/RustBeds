@@ -78,7 +78,6 @@ public final class RustBeds extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new RespawnMenuHandler(this), this);
         getServer().getPluginManager().registerEvents(new BedMenuInputListener(this), this);
         getServer().getPluginManager().registerEvents(new AdminBedsMenuHandler(this), this);
-        getServer().getPluginManager().registerEvents(new AdminBedMenuInputListener(this), this);
         getServer().getPluginManager().registerEvents(new BedDestroyedListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerGetsOnBedListener(this), this);
         getServer().getPluginManager().registerEvents(new RespawnAnchorListener(this), this);

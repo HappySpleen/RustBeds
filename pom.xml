@@ -13,8 +13,8 @@
 
     <description>A simple plugin to allow players to choose which bed to respawn into.</description>
     <properties>
-        <java.version>21</java.version>
-        <paper.api.version>1.21.11-R0.1-SNAPSHOT</paper.api.version>
+        <java.version>25</java.version>
+        <paper.api.version>26.1.2.build.53-stable</paper.api.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <url>https://github.com/HappySpleen</url>

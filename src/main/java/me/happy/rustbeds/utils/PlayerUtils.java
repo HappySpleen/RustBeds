@@ -13,9 +13,9 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import java.util.HashMap;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static me.happy.rustbeds.utils.BedsUtils.checksIfBedExists;
 
@@ -161,35 +161,54 @@ public class PlayerUtils {
     }
 
     public static Integer getPlayerBedsCount(Player p) {
-        AtomicInteger playerBedsCount = new AtomicInteger();
-        playerBedsCount.set(0);
         PlayerBedsData playerBedsData = loadPlayerBedsData(p);
-        if (playerBedsData != null && playerBedsData.getPlayerBedData() != null) {
-            HashMap<String, BedData> beds = playerBedsData.getPlayerBedData();
-            World world = getPlayerRespawnLoc(p).getWorld();
-            String worldName = world.getName();
-            if (!plugin.getConfig().getBoolean("link-worlds")) {
-                HashMap<String, BedData> bedsT = (HashMap<String, BedData>) beds.clone();
-                beds.forEach((uuid, bedData) -> {
-                    // clear lists so beds are only from the world that player will respawn
-                    if (!bedData.getBedWorld().equalsIgnoreCase(worldName)) {
-                        bedsT.remove(uuid);
-                    }
-                });
-                beds = bedsT;
-            }
-            playerBedsCount.set(beds.size());
-            beds.forEach((uuid, bedData) -> {
-                String[] location = bedData.getBedCoords().split(":");
-                String bedWorld = bedData.getBedWorld();
-                Location bedLoc = new Location(Bukkit.getWorld(bedWorld), Double.parseDouble(location[0]),
-                        Double.parseDouble(location[1]), Double.parseDouble(location[2]));
-                if (!checksIfBedExists(bedLoc, p, uuid)) {
-                    playerBedsCount.addAndGet(-1);
-                }
-            });
+        if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
+            return 0;
         }
-        return playerBedsCount.get();
+
+        World world = getPlayerRespawnLoc(p).getWorld();
+        String worldName = world == null ? null : world.getName();
+        boolean linkWorlds = plugin.getConfig().getBoolean("link-worlds");
+        int playerBedsCount = 0;
+        for (Map.Entry<String, BedData> entry : playerBedsData.getPlayerBedData().entrySet()) {
+            BedData bedData = entry.getValue();
+            if (bedData == null || (!linkWorlds && !bedData.getBedWorld().equalsIgnoreCase(worldName))) {
+                continue;
+            }
+
+            if (checksIfBedExists(bedData.getBedLocation(), p, entry.getKey())) {
+                playerBedsCount++;
+            }
+        }
+        return playerBedsCount;
+    }
+
+    public static String getOfflinePlayerName(OfflinePlayer player) {
+        if (player == null) {
+            return "Unknown player";
+        }
+
+        Player onlinePlayer = player.getPlayer();
+        if (onlinePlayer != null && onlinePlayer.getName() != null && !onlinePlayer.getName().isBlank()) {
+            return onlinePlayer.getName();
+        }
+
+        String playerName = player.getName();
+        if (playerName != null && !playerName.isBlank()) {
+            return playerName;
+        }
+
+        return player.getUniqueId().toString();
+    }
+
+    public static Comparator<OfflinePlayer> offlinePlayerListComparator() {
+        return Comparator.comparing((OfflinePlayer player) -> !isOnlinePlayer(player))
+                .thenComparing(PlayerUtils::getOfflinePlayerName, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(player -> player == null ? "" : player.getUniqueId().toString());
+    }
+
+    public static boolean isOnlinePlayer(OfflinePlayer player) {
+        return player != null && player.isOnline();
     }
 
 }

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Updated the build baseline to Java 25 and Paper API `26.1.2`.
+- Refactored respawn point menu internals to share menu item builders, status models, lore formatting, offline-player sorting, and rename prompt handling without changing player-facing behavior.
+
 ## [1.4.4] - 2026-05-01
 
 ### Changed

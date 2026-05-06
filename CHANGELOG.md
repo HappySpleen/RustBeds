@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-05-06
+
+### Added
+- Added bStats metrics reporting with shaded bStats `3.2.1` support and config-state charts for anchors, sharing, exclusivity, and teleport provider.
+
+## [1.4.4 (26.1)] - 2026-05-05
+
 ### Changed
 - Updated the build baseline to Java 25 and Paper API `26.1.2`.
 - Refactored respawn point menu internals to share menu item builders, status models, lore formatting, offline-player sorting, and rename prompt handling without changing player-facing behavior.

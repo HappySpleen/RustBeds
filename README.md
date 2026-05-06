@@ -81,6 +81,10 @@ The shipped [`config.yml`](src/main/resources/config.yml) documents each option 
 
 For server-owner explanations, see [Configuration](https://github.com/HappySpleen/RustBeds/wiki/Configuration) and [Respawn Flow and Safety](https://github.com/HappySpleen/RustBeds/wiki/Respawn-Flow-and-Safety).
 
+## Metrics
+
+RustBeds reports anonymous plugin usage stats through bStats. Server owners can opt out globally in `plugins/bStats/config.yml`.
+
 ## Documentation
 
 | Page | Contents |

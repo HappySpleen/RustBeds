@@ -3,6 +3,7 @@ package me.happy.rustbeds.listeners;
 import me.happy.rustbeds.RustBeds;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
+import me.happy.rustbeds.utils.AuditLog;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -162,8 +163,10 @@ public class BedMenuInputListener implements Listener {
             return;
         }
 
+        String oldName = bedData.getBedName();
         bedData.setBedName(input);
         savePlayerBedsData(player, playerBedsData);
+        AuditLog.logPlayerRename(player, prompt.bedUuid(), bedData, oldName, input);
         player.sendMessage(plugin.renameSuccessMessage(bedData.getRespawnPointType()));
         RespawnMenuHandler.openManageMenu(player, prompt.returnPage());
     }
@@ -186,8 +189,10 @@ public class BedMenuInputListener implements Listener {
             return;
         }
 
+        String oldName = bedData.getBedName();
         bedData.setBedName(input);
         savePlayerBedsData(owner, playerBedsData);
+        AuditLog.logAdminRename(admin, owner, prompt.bedUuid(), bedData, oldName, input);
         admin.sendMessage(ChatColor.YELLOW + plugin.renameSuccessMessage(bedData.getRespawnPointType()));
         AdminBedsMenuHandler.openActionMenu(admin, prompt.ownerId(), prompt.returnPage(), prompt.bedUuid());
     }

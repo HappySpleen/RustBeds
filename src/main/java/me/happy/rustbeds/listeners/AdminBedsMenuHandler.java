@@ -7,6 +7,7 @@ import me.happy.rustbeds.gui.BedStatus;
 import me.happy.rustbeds.gui.RespawnPointMenuLore;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
+import me.happy.rustbeds.utils.AuditLog;
 import me.happy.rustbeds.utils.PlayerUtils;
 import me.happy.rustbeds.utils.PluginKeys;
 import me.happy.rustbeds.utils.TeleportUtils;
@@ -327,7 +328,10 @@ public class AdminBedsMenuHandler implements Listener {
                 openGrantTargetMenu(admin, ownerId, bedUuid, holder.getPage(), 0);
             }
             case ACTION_REMOVE_SLOT -> {
-                removePlayerBed(bedUuid, owner);
+                BedData removedPoint = removePlayerBed(bedUuid, owner);
+                if (removedPoint != null) {
+                    AuditLog.logAdminRemove(admin, owner, bedUuid, removedPoint);
+                }
                 admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-remove-success",
                         "Removed {1}'s saved bed.").replace("{1}", PlayerUtils.getOfflinePlayerName(owner)));
                 openOwnerBedsMenu(admin, ownerId, holder.getPage());
@@ -733,6 +737,7 @@ public class AdminBedsMenuHandler implements Listener {
                     "An admin teleported you to {1}'s bed.").replace("{1}", ownerName));
         }
 
+        AuditLog.logAdminTeleport(admin, owner, target, entry.uuid(), entry.bedData());
         return true;
     }
 
@@ -768,6 +773,8 @@ public class AdminBedsMenuHandler implements Listener {
         if (transferOwnership) {
             savePlayerBedsData(owner, ownerBedsData);
         }
+        AuditLog.logAdminGrant(admin, owner, target, bedUuid, targetBedsData.getPlayerBedData().get(bedUuid),
+                transferOwnership);
         admin.sendMessage(ChatColor.YELLOW + plugin.message("admin-beds-give-success",
                 "Gave {1}'s respawn point to {2}.")
                 .replace("{1}", ownerName)

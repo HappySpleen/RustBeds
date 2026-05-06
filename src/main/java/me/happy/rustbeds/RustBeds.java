@@ -6,6 +6,7 @@ import me.happy.rustbeds.commands.RespawnMenuCommand;
 import me.happy.rustbeds.listeners.*;
 import me.happy.rustbeds.metrics.MetricsBootstrap;
 import me.happy.rustbeds.models.BedData;
+import me.happy.rustbeds.utils.AuditLog;
 import me.happy.rustbeds.utils.PlayerBedStore;
 import me.happy.rustbeds.utils.RespawnAnchorStore;
 
@@ -29,7 +30,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public final class RustBeds extends JavaPlugin {
-    private static final int CURRENT_CONFIG_VERSION = 5;
+    private static final int CURRENT_CONFIG_VERSION = 6;
     private static final String CONFIG_FILE_NAME = "config.yml";
     private static final String LEGACY_PLUGIN_FOLDER_NAME = "MultipleBedSpawn";
     private static final String DATABASE_FILE_NAME = "respawn-points.db";
@@ -75,6 +76,7 @@ public final class RustBeds extends JavaPlugin {
         MetricsBootstrap.start(this);
         playerBedStore = new PlayerBedStore(this);
         respawnAnchorStore = new RespawnAnchorStore(this);
+        AuditLog.initialize(this);
 
         getServer().getPluginManager().registerEvents(new PlayerRespawnListener(this), this);
         getServer().getPluginManager().registerEvents(new RespawnMenuHandler(this), this);
@@ -195,6 +197,7 @@ public final class RustBeds extends JavaPlugin {
         createLanguageConfig();
         playerBedStore.reload();
         respawnAnchorStore.reload();
+        AuditLog.initialize(this);
     }
 
     @Override

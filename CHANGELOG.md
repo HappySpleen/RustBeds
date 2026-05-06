@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-05-06
+
+### Added
+- Added configurable player and admin audit logs under `plugins/RustBeds/Logs`, with default 30-day retention and tracking for rename, remove, share/give, and admin teleport actions.
+
 ## [1.5.1] - 2026-05-06
 
 ### Changed

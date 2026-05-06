@@ -1,6 +1,6 @@
 # Version marker for the shipped config layout.
 # The plugin updates this when new config defaults or migrations are introduced.
-config-version: 5
+config-version: 6
 
 # Language file to load from src/main/resources/languages.
 # Falls back to enUS if the selected file is missing.
@@ -24,6 +24,15 @@ bed-cooldown: 120
 # If both are used, a world must be in allowlist and not in denylist.
 denylist: []
 allowlist: []
+
+# Audit logs for server-owner visibility into player and admin respawn-point actions.
+# Logs are written to plugins/RustBeds/Logs when enabled.
+audit-log:
+  # If true, RustBeds writes player and admin audit logs.
+  enabled: true
+  # Number of days to keep audit log files.
+  # 1 day is the minimum.
+  retention-days: 30
 
 # If true, players can view and use saved beds from every saved world.
 # If false, they only see beds from the world they are currently respawning in.

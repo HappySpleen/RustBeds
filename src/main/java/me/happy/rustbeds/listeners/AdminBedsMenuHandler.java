@@ -300,10 +300,8 @@ public class AdminBedsMenuHandler implements Listener {
                     return;
                 }
 
-                BedMenuInputListener.beginRenamePrompt(admin, ownerId, bedUuid, holder.getPage());
-                admin.sendMessage(ChatColor.YELLOW + plugin.message("rename-prompt",
-                        "Type the new bed name in chat. Type 'cancel' to abort."));
-                admin.closeInventory();
+                BedMenuInputListener.beginRenamePrompt(admin, ownerId, bedUuid, holder.getPage(),
+                        entry.displayName());
             }
             case ACTION_TELEPORT_SELF_SLOT -> {
                 if (entry.status() == BedStatus.MISSING) {

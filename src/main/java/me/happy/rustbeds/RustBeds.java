@@ -4,6 +4,7 @@ import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import me.happy.rustbeds.commands.RespawnMenuCommand;
 import me.happy.rustbeds.listeners.*;
+import me.happy.rustbeds.metrics.MetricsBootstrap;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.utils.PlayerBedStore;
 import me.happy.rustbeds.utils.RespawnAnchorStore;
@@ -71,6 +72,7 @@ public final class RustBeds extends JavaPlugin {
         migrateLegacyDataFolder();
         initializeConfig();
         createLanguageConfig();
+        MetricsBootstrap.start(this);
         playerBedStore = new PlayerBedStore(this);
         respawnAnchorStore = new RespawnAnchorStore(this);
 

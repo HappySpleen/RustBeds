@@ -305,10 +305,7 @@ public class RespawnMenuHandler implements Listener {
                 }
 
                 cancelSession(player.getUniqueId());
-                BedMenuInputListener.beginRenamePrompt(player, bedUuid, holder.getPage());
-                player.sendMessage(ChatColor.YELLOW + plugin.message("rename-prompt",
-                        "Type the new bed name in chat. Type 'cancel' to abort."));
-                player.closeInventory();
+                BedMenuInputListener.beginRenamePrompt(player, bedUuid, holder.getPage(), entry.displayName());
             }
             case ACTION_PRIMARY_SLOT -> {
                 if (entry.status() == BedStatus.MISSING

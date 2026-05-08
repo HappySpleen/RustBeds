@@ -1,6 +1,6 @@
 # Version marker for the shipped config layout.
 # The plugin updates this when new config defaults or migrations are introduced.
-config-version: 6
+config-version: 7
 
 # Language file to load from src/main/resources/languages.
 # Falls back to enUS if the selected file is missing.
@@ -30,6 +30,12 @@ allowlist: []
 audit-log:
   # If true, RustBeds writes player and admin audit logs.
   enabled: true
+  # If true, audit log lines include duplicate actor/owner/target fields,
+  # point material, world, block coordinates, spawn coordinates, and action
+  # details such as old/new names.
+  # If false, log lines keep only the core action, actor, owner/target when
+  # different, point identity, point type/name, and share/give mode.
+  verbose: false
   # Number of days to keep audit log files.
   # 1 day is the minimum.
   retention-days: 30

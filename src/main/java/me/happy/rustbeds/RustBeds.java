@@ -30,7 +30,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public final class RustBeds extends JavaPlugin {
-    private static final int CURRENT_CONFIG_VERSION = 6;
+    private static final int CURRENT_CONFIG_VERSION = 7;
     private static final String CONFIG_FILE_NAME = "config.yml";
     private static final String LEGACY_PLUGIN_FOLDER_NAME = "MultipleBedSpawn";
     private static final String DATABASE_FILE_NAME = "respawn-points.db";

@@ -15,13 +15,17 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
+import java.util.UUID;
 
 public final class AuditLog {
     private static final String CONFIG_ENABLED_PATH = "audit-log.enabled";
+    private static final String CONFIG_VERBOSE_PATH = "audit-log.verbose";
     private static final String CONFIG_RETENTION_DAYS_PATH = "audit-log.retention-days";
     private static final int DEFAULT_RETENTION_DAYS = 30;
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
     private static final DateTimeFormatter FILE_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final Set<String> CONCISE_DETAIL_KEYS = Set.of("mode");
 
     private AuditLog() {
     }
@@ -116,51 +120,76 @@ public final class AuditLog {
 
     private static String buildLine(String action, Player actor, OfflinePlayer owner, OfflinePlayer target,
             String pointUuid, BedData point, String... details) {
+        boolean verbose = isVerbose(RustBeds.getInstance());
         StringBuilder builder = new StringBuilder();
         append(builder, "timestamp", TIMESTAMP_FORMATTER.format(ZonedDateTime.now().withNano(0)));
         append(builder, "action", action);
-        appendPlayer(builder, "actor", actor);
-        appendOfflinePlayer(builder, "owner", owner);
-        appendOfflinePlayer(builder, "target", target);
-        appendPoint(builder, pointUuid, point);
+        appendPlayer(builder, "actor", actor, verbose);
+        appendRelatedOfflinePlayer(builder, "owner", owner, actor, verbose);
+        appendRelatedOfflinePlayer(builder, "target", target, actor, verbose);
+        appendPoint(builder, pointUuid, point, verbose);
         for (int index = 0; index + 1 < details.length; index += 2) {
-            append(builder, details[index], details[index + 1]);
+            if (verbose || CONCISE_DETAIL_KEYS.contains(details[index])) {
+                append(builder, details[index], details[index + 1]);
+            }
         }
         return builder.toString().trim();
     }
 
-    private static void appendPlayer(StringBuilder builder, String prefix, Player player) {
+    private static void appendPlayer(StringBuilder builder, String prefix, Player player, boolean verbose) {
         if (player == null) {
             return;
         }
 
-        append(builder, prefix + "_name", player.getName());
+        append(builder, verbose ? prefix + "_name" : prefix, player.getName());
         append(builder, prefix + "_uuid", player.getUniqueId().toString());
     }
 
-    private static void appendOfflinePlayer(StringBuilder builder, String prefix, OfflinePlayer player) {
+    private static void appendRelatedOfflinePlayer(StringBuilder builder, String prefix, OfflinePlayer player,
+            OfflinePlayer actor, boolean verbose) {
         if (player == null) {
             return;
         }
+        if (!verbose && samePlayer(player, actor)) {
+            return;
+        }
 
-        append(builder, prefix + "_name", PlayerUtils.getOfflinePlayerName(player));
+        append(builder, verbose ? prefix + "_name" : prefix, PlayerUtils.getOfflinePlayerName(player));
         append(builder, prefix + "_uuid", player.getUniqueId().toString());
     }
 
-    private static void appendPoint(StringBuilder builder, String pointUuid, BedData point) {
+    private static void appendPoint(StringBuilder builder, String pointUuid, BedData point, boolean verbose) {
         append(builder, "point_uuid", pointUuid);
         if (point == null) {
             return;
         }
 
         append(builder, "point_type", point.getRespawnPointType().name().toLowerCase());
-        append(builder, "point_name", point.getBedName());
+        appendIfPresent(builder, "point_name", point.getBedName());
+        if (!verbose) {
+            return;
+        }
+
         append(builder, "point_material", point.getBedMaterial() == null
                 ? ""
                 : point.getBedMaterial().name().toLowerCase());
         append(builder, "world", point.getBedWorld());
         append(builder, "block_coords", point.getBedCoords());
         append(builder, "spawn_coords", point.getBedSpawnCoords());
+    }
+
+    private static boolean samePlayer(OfflinePlayer first, OfflinePlayer second) {
+        UUID firstId = first == null ? null : first.getUniqueId();
+        UUID secondId = second == null ? null : second.getUniqueId();
+        return firstId != null && firstId.equals(secondId);
+    }
+
+    private static void appendIfPresent(StringBuilder builder, String key, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+
+        append(builder, key, value);
     }
 
     private static void append(StringBuilder builder, String key, String value) {
@@ -181,6 +210,10 @@ public final class AuditLog {
 
     private static boolean isEnabled(RustBeds plugin) {
         return plugin != null && plugin.getConfig().getBoolean(CONFIG_ENABLED_PATH, true);
+    }
+
+    private static boolean isVerbose(RustBeds plugin) {
+        return plugin != null && plugin.getConfig().getBoolean(CONFIG_VERBOSE_PATH, false);
     }
 
     private static String sharingAction(boolean transferOwnership) {

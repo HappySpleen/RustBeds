@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-05-08
+
+### Changed
+- Trimmed default audit log lines and added `audit-log.verbose` to restore the full detail level when needed.
+
 ## [1.6.0] - 2026-05-06
 
 ### Added

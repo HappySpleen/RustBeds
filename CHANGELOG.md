@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-05-11
+
+### Changed
+- Changed player and admin audit logs from single-line logfmt to multi-line admin-readable entries with aligned details and trace UUIDs.
+- Added audit log format controls for readable, JSON Lines, and logfmt output, plus UUID, spawn-coordinate, coordinate-decimal, and divider options.
+
+### Fixed
+- Fixed the anvil rename UI leaking its temporary name tag into the player's inventory.
+
 ## [1.6.1] - 2026-05-08
 
 ### Changed

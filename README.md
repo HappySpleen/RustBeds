@@ -78,7 +78,7 @@ The shipped [`config.yml`](src/main/resources/config.yml) documents each option 
 - `spawn-on-sky`, `respawn-menu-open-delay-ticks`, and `respawn-menu-timeout-seconds` for the death-menu flow
 - `safe-location-search` for obstruction search radius and required collision-free respawn space
 - `exclusive-bed`, `bed-sharing`, and `respawn-anchors-enabled` for gameplay rules
-- `audit-log.enabled`, `audit-log.verbose`, and `audit-log.retention-days` for player/admin usage logs
+- `audit-log.enabled`, `audit-log.format`, and related audit output controls for player/admin usage logs
 - `command-on-spawn`, `run-command-as-player`, and `teleport-provider` for integration behavior
 
 For server-owner explanations, see [Configuration](https://github.com/HappySpleen/RustBeds/wiki/Configuration) and [Respawn Flow and Safety](https://github.com/HappySpleen/RustBeds/wiki/Respawn-Flow-and-Safety).

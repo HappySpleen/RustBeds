@@ -43,6 +43,10 @@ public final class PluginKeys {
         return Holder.ADMIN_TARGET;
     }
 
+    public static NamespacedKey renameAnvilItem() {
+        return Holder.RENAME_ANVIL_ITEM;
+    }
+
     public static NamespacedKey spawnLoc() {
         return Holder.SPAWN_LOC;
     }
@@ -80,6 +84,8 @@ public final class PluginKeys {
         private static final NamespacedKey ADMIN_OWNER = new NamespacedKey(LEGACY_DATA_NAMESPACE, "admin-owner");
         private static final NamespacedKey ADMIN_BED = new NamespacedKey(LEGACY_DATA_NAMESPACE, "admin-bed");
         private static final NamespacedKey ADMIN_TARGET = new NamespacedKey(LEGACY_DATA_NAMESPACE, "admin-target");
+        private static final NamespacedKey RENAME_ANVIL_ITEM =
+                new NamespacedKey(LEGACY_DATA_NAMESPACE, "rename-anvil-item");
         private static final NamespacedKey SPAWN_LOC = new NamespacedKey(LEGACY_DATA_NAMESPACE, "spawnloc");
         private static final NamespacedKey HAS_PROP = new NamespacedKey(LEGACY_DATA_NAMESPACE, "hasprop");
         private static final NamespacedKey IS_INVISIBLE = new NamespacedKey(LEGACY_DATA_NAMESPACE, "isinvisible");

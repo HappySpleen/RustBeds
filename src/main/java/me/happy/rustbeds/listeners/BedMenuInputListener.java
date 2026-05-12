@@ -3,6 +3,8 @@ package me.happy.rustbeds.listeners;
 import me.happy.rustbeds.RustBeds;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
+import me.happy.rustbeds.utils.AuditLog;
+import me.happy.rustbeds.utils.PluginKeys;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -19,6 +21,7 @@ import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.view.AnvilView;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
 import java.util.List;
@@ -96,7 +99,9 @@ public class BedMenuInputListener implements Listener {
         }
 
         RENAME_PROMPTS.remove(player.getUniqueId());
+        clearRenameAnvilItems(event.getView());
         player.closeInventory();
+        cleanPlayerRenameItems(player);
         handleRenameInput(player, prompt, input);
     }
 
@@ -115,11 +120,13 @@ public class BedMenuInputListener implements Listener {
             return;
         }
 
+        clearRenameAnvilItems(event.getInventory());
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (!player.isOnline()) {
                 return;
             }
 
+            cleanPlayerRenameItems(player);
             player.sendMessage(ChatColor.YELLOW + plugin.message("rename-prompt-cancelled", "Renaming cancelled."));
             reopenPromptMenu(player, prompt);
         });
@@ -128,6 +135,7 @@ public class BedMenuInputListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         RENAME_PROMPTS.remove(event.getPlayer().getUniqueId());
+        cleanPlayerRenameItems(event.getPlayer());
     }
 
     private void handleRenameInput(Player player, RenamePrompt prompt, String input) {
@@ -162,8 +170,10 @@ public class BedMenuInputListener implements Listener {
             return;
         }
 
+        String oldName = bedData.getBedName();
         bedData.setBedName(input);
         savePlayerBedsData(player, playerBedsData);
+        AuditLog.logPlayerRename(player, prompt.bedUuid(), bedData, oldName, input);
         player.sendMessage(plugin.renameSuccessMessage(bedData.getRespawnPointType()));
         RespawnMenuHandler.openManageMenu(player, prompt.returnPage());
     }
@@ -186,8 +196,10 @@ public class BedMenuInputListener implements Listener {
             return;
         }
 
+        String oldName = bedData.getBedName();
         bedData.setBedName(input);
         savePlayerBedsData(owner, playerBedsData);
+        AuditLog.logAdminRename(admin, owner, prompt.bedUuid(), bedData, oldName, input);
         admin.sendMessage(ChatColor.YELLOW + plugin.renameSuccessMessage(bedData.getRespawnPointType()));
         AdminBedsMenuHandler.openActionMenu(admin, prompt.ownerId(), prompt.returnPage(), prompt.bedUuid());
     }
@@ -223,6 +235,7 @@ public class BedMenuInputListener implements Listener {
         hideMenuTooltipDetails(meta);
         meta.setLore(List.of(ChatColor.GRAY + plugin.message("rename-anvil-input-lore",
                 "Enter a new respawn point name.")));
+        meta.getPersistentDataContainer().set(PluginKeys.renameAnvilItem(), PersistentDataType.BOOLEAN, true);
         item.setItemMeta(meta);
         return item;
     }
@@ -237,6 +250,7 @@ public class BedMenuInputListener implements Listener {
         hideMenuTooltipDetails(meta);
         meta.setLore(List.of(ChatColor.GRAY + plugin.message("rename-anvil-save-lore",
                 "Click the result to save this name.")));
+        meta.getPersistentDataContainer().set(PluginKeys.renameAnvilItem(), PersistentDataType.BOOLEAN, true);
         item.setItemMeta(meta);
         return item;
     }
@@ -271,6 +285,34 @@ public class BedMenuInputListener implements Listener {
             return currentName.trim();
         }
         return plugin.message("rename-anvil-empty-name", "New respawn point name");
+    }
+
+    private static void clearRenameAnvilItems(InventoryView view) {
+        clearRenameAnvilItems(view.getTopInventory());
+    }
+
+    private static void clearRenameAnvilItems(org.bukkit.inventory.Inventory inventory) {
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (isRenameAnvilItem(inventory.getItem(slot))) {
+                inventory.setItem(slot, null);
+            }
+        }
+    }
+
+    private static void cleanPlayerRenameItems(Player player) {
+        org.bukkit.inventory.Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (isRenameAnvilItem(inventory.getItem(slot))) {
+                inventory.setItem(slot, null);
+            }
+        }
+    }
+
+    private static boolean isRenameAnvilItem(ItemStack item) {
+        return item != null
+                && item.hasItemMeta()
+                && item.getItemMeta().getPersistentDataContainer()
+                        .has(PluginKeys.renameAnvilItem(), PersistentDataType.BOOLEAN);
     }
 
     private record RenamePrompt(UUID ownerId, String bedUuid, int returnPage, String currentName) {

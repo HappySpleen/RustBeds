@@ -8,6 +8,7 @@ import me.happy.rustbeds.gui.RespawnPointMenuLore;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
 import me.happy.rustbeds.models.ShareInvite;
+import me.happy.rustbeds.utils.AuditLog;
 import me.happy.rustbeds.utils.PlayerUtils;
 import me.happy.rustbeds.utils.PluginKeys;
 import net.kyori.adventure.text.Component;
@@ -331,7 +332,10 @@ public class RespawnMenuHandler implements Listener {
                 showShareMenu(player, bedUuid, 0);
             }
             case ACTION_REMOVE_SLOT -> {
-                removePlayerBed(bedUuid, player);
+                BedData removedPoint = removePlayerBed(bedUuid, player);
+                if (removedPoint != null) {
+                    AuditLog.logPlayerRemove(player, bedUuid, removedPoint);
+                }
                 player.sendMessage(ChatColor.YELLOW
                         + plugin.message("bed-removed-successfully-message", "Bed removed successfully!"));
                 openManageMenu(player, holder.getPage());
@@ -1056,6 +1060,8 @@ public class RespawnMenuHandler implements Listener {
             return false;
         }
 
+        AuditLog.logPlayerShareRequest(owner, receiver, bedUuid, ownerBedsData.getPlayerBedData().get(bedUuid),
+                invite.transferOwnership());
         owner.sendMessage(ChatColor.YELLOW + inviteModeMessage(invite, "bed-share-invite-sent",
                 "Share request sent to {1}. It expires in {2}.", "bed-transfer-invite-sent",
                 "Transfer request sent to {1}. It expires in {2}.")
@@ -1116,6 +1122,8 @@ public class RespawnMenuHandler implements Listener {
         ownerBedsData.shareBed(receiverBedsData, invite.bedUuid(), invite.transferOwnership(), ownerName);
         savePlayerBedsData(receiver, receiverBedsData);
         savePlayerBedsData(owner, ownerBedsData);
+        AuditLog.logPlayerShareAccepted(receiver, owner, invite.bedUuid(),
+                receiverBedsData.getPlayerBedData().get(invite.bedUuid()), invite.transferOwnership());
         if (invite.transferOwnership()) {
             plugin.getPlayerBedStore().deleteShareInvitesForBed(invite.bedUuid());
         }

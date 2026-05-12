@@ -30,6 +30,7 @@ RustBeds was previously published as `MultipleBedSpawn`. Current releases use th
 - Cooldowns, per-player saved-point limits, world filters, linked-world visibility, sharing, and exclusive ownership
 - Admin `/beds admin` menus for renaming, removing, teleporting to, and granting saved points
 - SQLite persistence in `plugins/RustBeds/respawn-points.db`
+- Player and admin audit logs in `plugins/RustBeds/Logs`
 - Optional Multiverse-Core teleport integration with vanilla teleport fallback
 - Bundled language files for `enUS`, `deDE`, `esES`, `frFR`, `ptBR`, `ruRU`, `svSE`, and `zhCH`
 
@@ -77,6 +78,7 @@ The shipped [`config.yml`](src/main/resources/config.yml) documents each option 
 - `spawn-on-sky`, `respawn-menu-open-delay-ticks`, and `respawn-menu-timeout-seconds` for the death-menu flow
 - `safe-location-search` for obstruction search radius and required collision-free respawn space
 - `exclusive-bed`, `bed-sharing`, and `respawn-anchors-enabled` for gameplay rules
+- `audit-log.enabled`, `audit-log.format`, and related audit output controls for player/admin usage logs
 - `command-on-spawn`, `run-command-as-player`, and `teleport-provider` for integration behavior
 
 For server-owner explanations, see [Configuration](https://github.com/HappySpleen/RustBeds/wiki/Configuration) and [Respawn Flow and Safety](https://github.com/HappySpleen/RustBeds/wiki/Respawn-Flow-and-Safety).

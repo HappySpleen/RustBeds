@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-05-12
+
 ### Added
 - Added config-version backups under `plugins/RustBeds/backups/config`, plus an optional fresh-config-on-update mode.
 - Added `respawn-points.db` backups under `plugins/RustBeds/backups/DB` for plugin-version updates and scheduled day-based retention.

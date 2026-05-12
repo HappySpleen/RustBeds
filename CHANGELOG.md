@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Added config-version backups under `plugins/RustBeds/backups/config`, plus an optional fresh-config-on-update mode.
+- Added `respawn-points.db` backups under `plugins/RustBeds/backups/DB` for plugin-version updates and scheduled day-based retention.
+- Added a red console warning when `backups.config.fresh-on-version-change` replaces `config.yml` with bundled defaults, plus yellow console logs showing created backup file locations.
+
 ## [1.7.0] - 2026-05-11
 
 ### Changed

@@ -1,6 +1,6 @@
 # Version marker for the shipped config layout.
 # The plugin updates this when new config defaults or migrations are introduced.
-config-version: 9
+config-version: 10
 
 # Language file to load from src/main/resources/languages.
 # Falls back to enUS if the selected file is missing.
@@ -48,6 +48,23 @@ audit-log:
   # Number of days to keep audit log files.
   # 1 day is the minimum.
   retention-days: 30
+
+# Backup settings for config.yml and the SQLite respawn point database.
+backups:
+  config:
+    # If true, a config-version change backs up the old config.yml and replaces
+    # it with the plugin's bundled default config instead of merging old values.
+    fresh-on-version-change: false
+  database:
+    # If true, RustBeds backs up respawn-points.db once before a new plugin
+    # version opens and updates the database.
+    backup-before-update: true
+    # Number of days between automatic respawn-points.db backups.
+    # Set to 0 to disable scheduled database backups.
+    backup-interval-days: 0
+    # Number of scheduled database backups to keep when backup-interval-days is enabled.
+    # Update-version backups are not removed by this limit.
+    max-scheduled-backups: 7
 
 # If true, players can view and use saved beds from every saved world.
 # If false, they only see beds from the world they are currently respawning in.

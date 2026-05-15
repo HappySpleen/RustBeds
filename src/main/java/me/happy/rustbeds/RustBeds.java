@@ -10,6 +10,7 @@ import me.happy.rustbeds.utils.AuditLog;
 import me.happy.rustbeds.utils.BackupManager;
 import me.happy.rustbeds.utils.PlayerBedStore;
 import me.happy.rustbeds.utils.RespawnAnchorStore;
+import me.happy.rustbeds.utils.UpdateChecker;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -31,7 +32,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public final class RustBeds extends JavaPlugin {
-    private static final int CURRENT_CONFIG_VERSION = 10;
+    private static final int CURRENT_CONFIG_VERSION = 11;
     private static final String CONFIG_FILE_NAME = "config.yml";
     private static final String LEGACY_PLUGIN_FOLDER_NAME = "MultipleBedSpawn";
     private static final String DATABASE_FILE_NAME = "respawn-points.db";
@@ -67,6 +68,7 @@ public final class RustBeds extends JavaPlugin {
     private BackupManager backupManager;
     private PlayerBedStore playerBedStore;
     private RespawnAnchorStore respawnAnchorStore;
+    private UpdateChecker updateChecker;
 
     private static RustBeds instance;
 
@@ -83,6 +85,7 @@ public final class RustBeds extends JavaPlugin {
         playerBedStore = new PlayerBedStore(this);
         respawnAnchorStore = new RespawnAnchorStore(this);
         AuditLog.initialize(this);
+        updateChecker = new UpdateChecker(this);
 
         getServer().getPluginManager().registerEvents(new PlayerRespawnListener(this), this);
         getServer().getPluginManager().registerEvents(new RespawnMenuHandler(this), this);
@@ -93,6 +96,7 @@ public final class RustBeds extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new RespawnAnchorListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerSetSpawnListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
+        getServer().getPluginManager().registerEvents(updateChecker, this);
 
         this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
@@ -101,6 +105,7 @@ public final class RustBeds extends JavaPlugin {
         });
 
         this.getLogger().info("Commands registered with Paper lifecycle manager");
+        updateChecker.checkForUpdates();
     }
 
     public static RustBeds getInstance() {
@@ -113,6 +118,10 @@ public final class RustBeds extends JavaPlugin {
 
     public RespawnAnchorStore getRespawnAnchorStore() {
         return respawnAnchorStore;
+    }
+
+    public String getPluginFileName() {
+        return getFile().getName();
     }
 
     // get message of selected language
@@ -204,10 +213,16 @@ public final class RustBeds extends JavaPlugin {
         playerBedStore.reload();
         respawnAnchorStore.reload();
         AuditLog.initialize(this);
+        if (updateChecker != null) {
+            updateChecker.reload();
+        }
     }
 
     @Override
     public void onDisable() {
+        if (updateChecker != null) {
+            updateChecker.shutdown();
+        }
         if (playerBedStore != null) {
             playerBedStore.close();
         }

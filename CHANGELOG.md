@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-05-15
+
+### Added
+- Added a Modrinth update checker that reports newer release, dev, and dev alpha builds to the console and online admins.
+
 ## [1.8.0] - 2026-05-12
 
 ### Added

@@ -32,6 +32,7 @@ RustBeds was previously published as `MultipleBedSpawn`. Current releases use th
 - SQLite persistence in `plugins/RustBeds/respawn-points.db`
 - Config and SQLite backups in `plugins/RustBeds/backups`
 - Player and admin audit logs in `plugins/RustBeds/Logs`
+- Modrinth update notices in console and admin chat, including release, dev, and dev alpha warnings
 - Optional Multiverse-Core teleport integration with vanilla teleport fallback
 - Bundled language files for `enUS`, `deDE`, `esES`, `frFR`, `ptBR`, `ruRU`, `svSE`, and `zhCH`
 
@@ -81,6 +82,7 @@ The shipped [`config.yml`](src/main/resources/config.yml) documents each option 
 - `exclusive-bed`, `bed-sharing`, and `respawn-anchors-enabled` for gameplay rules
 - `audit-log.enabled`, `audit-log.format`, and related audit output controls for player/admin usage logs
 - `backups.config` and `backups.database` for config rollback files and database update or scheduled backups
+- `update-checker.enabled`, `update-checker.modrinth-project`, and `update-checker.notify-admins` for Modrinth update notices
 - `command-on-spawn`, `run-command-as-player`, and `teleport-provider` for integration behavior
 
 For server-owner explanations, see [Configuration](https://github.com/HappySpleen/RustBeds/wiki/Configuration) and [Respawn Flow and Safety](https://github.com/HappySpleen/RustBeds/wiki/Respawn-Flow-and-Safety).

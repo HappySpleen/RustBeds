@@ -1,11 +1,22 @@
 # Version marker for the shipped config layout.
 # The plugin updates this when new config defaults or migrations are introduced.
-config-version: 10
+config-version: 11
 
 # Language file to load from src/main/resources/languages.
 # Falls back to enUS if the selected file is missing.
 # Current bundled options include: enUS, deDE, esES, frFR, ptBR, ruRU, svSE, zhCH.
 lang: "enUS"
+
+# Modrinth update checker.
+# Uses Modrinth release channels: release = Release, beta = Dev, alpha = Dev Alpha.
+# Dev builds are test builds. Alpha builds get an extra database compatibility warning.
+update-checker:
+  # If true, RustBeds checks Modrinth for a newer release, beta, or alpha version on startup and reload.
+  enabled: true
+  # Modrinth project ID or slug to check.
+  modrinth-project: "rustbeds"
+  # If true, players with rustbeds.admin or multiplebedspawn.admin see update notices in chat.
+  notify-admins: true
 
 # Maximum number of saved beds per player.
 # Hard-capped to 53 by the plugin.

@@ -7,6 +7,7 @@ import me.happy.rustbeds.listeners.*;
 import me.happy.rustbeds.metrics.MetricsBootstrap;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.utils.AuditLog;
+import me.happy.rustbeds.utils.BackupManager;
 import me.happy.rustbeds.utils.PlayerBedStore;
 import me.happy.rustbeds.utils.RespawnAnchorStore;
 
@@ -30,10 +31,11 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public final class RustBeds extends JavaPlugin {
-    private static final int CURRENT_CONFIG_VERSION = 9;
+    private static final int CURRENT_CONFIG_VERSION = 10;
     private static final String CONFIG_FILE_NAME = "config.yml";
     private static final String LEGACY_PLUGIN_FOLDER_NAME = "MultipleBedSpawn";
     private static final String DATABASE_FILE_NAME = "respawn-points.db";
+    private static final String FRESH_CONFIG_ON_VERSION_CHANGE_PATH = "backups.config.fresh-on-version-change";
     private static final String SAFE_LOCATION_VERTICAL_RADIUS_PATH = "safe-location-search.vertical-radius-blocks";
     private static final String SAFE_LOCATION_REQUIRED_SPACE_HEIGHT_PATH =
             "safe-location-search.required-space-height-blocks";
@@ -62,6 +64,7 @@ public final class RustBeds extends JavaPlugin {
     public static final String LEGACY_MAXCOUNT_PERMISSION_PREFIX = "multiplebedspawn.maxcount.";
 
     private Configuration messages;
+    private BackupManager backupManager;
     private PlayerBedStore playerBedStore;
     private RespawnAnchorStore respawnAnchorStore;
 
@@ -72,9 +75,11 @@ public final class RustBeds extends JavaPlugin {
         instance = this;
 
         migrateLegacyDataFolder();
+        backupManager = new BackupManager(this);
         initializeConfig();
         createLanguageConfig();
         MetricsBootstrap.start(this);
+        backupManager.runStartupDatabaseBackups();
         playerBedStore = new PlayerBedStore(this);
         respawnAnchorStore = new RespawnAnchorStore(this);
         AuditLog.initialize(this);
@@ -291,6 +296,10 @@ public final class RustBeds extends JavaPlugin {
     }
 
     private void initializeConfig() {
+        if (backupManager == null) {
+            backupManager = new BackupManager(this);
+        }
+
         File dataFolder = getDataFolder();
         if (!dataFolder.exists() && !dataFolder.mkdirs()) {
             getLogger().warning("Could not create plugin data folder at " + dataFolder.getAbsolutePath() + ".");
@@ -313,6 +322,22 @@ public final class RustBeds extends JavaPlugin {
     private void mergeConfigWithTemplate(File configFile) throws IOException, InvalidConfigurationException {
         String existingContent = Files.readString(configFile.toPath(), StandardCharsets.UTF_8);
         YamlConfiguration existingConfig = loadConfigWithComments(existingContent);
+        ConfigVersionInfo configVersionInfo = readConfigVersionInfo(existingConfig);
+        boolean freshConfigRequested = existingConfig.getBoolean(FRESH_CONFIG_ON_VERSION_CHANGE_PATH, false)
+                && configVersionInfo.isDifferentFrom(CURRENT_CONFIG_VERSION);
+        if (configVersionInfo.shouldUpdateTo(CURRENT_CONFIG_VERSION) || freshConfigRequested) {
+            backupManager.backupConfigBeforeVersionUpdate(configFile, configVersionInfo.backupLabel(),
+                    CURRENT_CONFIG_VERSION);
+        }
+        if (freshConfigRequested) {
+            Files.writeString(configFile.toPath(), readBundledConfigTemplate(), StandardCharsets.UTF_8);
+            getLogger().warning("config.yml version " + configVersionInfo.backupLabel()
+                    + " differs from bundled config version " + CURRENT_CONFIG_VERSION
+                    + ". Created a fresh config.yml from bundled defaults.");
+            sendFreshConfigReviewWarning();
+            return;
+        }
+
         YamlConfiguration mergedConfig = loadConfigWithComments(readBundledConfigTemplate());
 
         copyConfiguredValues(existingConfig, mergedConfig);
@@ -439,6 +464,34 @@ public final class RustBeds extends JavaPlugin {
         if (configVersion > CURRENT_CONFIG_VERSION) {
             getLogger().warning("config.yml version " + configVersion + " is newer than this plugin supports ("
                     + CURRENT_CONFIG_VERSION + ").");
+        }
+    }
+
+    private ConfigVersionInfo readConfigVersionInfo(YamlConfiguration config) {
+        if (!config.contains("config-version")) {
+            return new ConfigVersionInfo(null, "missing");
+        }
+        if (!config.isInt("config-version")) {
+            return new ConfigVersionInfo(null, "invalid");
+        }
+        int configVersion = config.getInt("config-version");
+        return new ConfigVersionInfo(configVersion, String.valueOf(configVersion));
+    }
+
+    private void sendFreshConfigReviewWarning() {
+        getServer().getConsoleSender().sendMessage(ChatColor.RED
+                + "[RustBeds WARNING] backups.config.fresh-on-version-change is enabled. Review plugins/"
+                + getDataFolder().getName()
+                + "/config.yml before allowing players to join because custom settings were reset to defaults.");
+    }
+
+    private record ConfigVersionInfo(Integer version, String backupLabel) {
+        private boolean isDifferentFrom(int currentConfigVersion) {
+            return version == null || version != currentConfigVersion;
+        }
+
+        private boolean shouldUpdateTo(int currentConfigVersion) {
+            return version == null || version < currentConfigVersion;
         }
     }
 }

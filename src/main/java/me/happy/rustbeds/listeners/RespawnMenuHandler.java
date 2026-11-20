@@ -5,6 +5,7 @@ import me.happy.rustbeds.gui.BedMenuEntry;
 import me.happy.rustbeds.gui.BedStatus;
 import me.happy.rustbeds.gui.RespawnMenuHolder;
 import me.happy.rustbeds.gui.RespawnPointMenuLore;
+import me.happy.rustbeds.gui.MenuItems;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
 import me.happy.rustbeds.models.ShareInvite;
@@ -46,7 +47,6 @@ import static me.happy.rustbeds.gui.MenuItems.createActionItem;
 import static me.happy.rustbeds.gui.MenuItems.createControlItem;
 import static me.happy.rustbeds.gui.MenuItems.fillBottomRow;
 import static me.happy.rustbeds.gui.MenuItems.fillInventory;
-import static me.happy.rustbeds.gui.MenuItems.hideMenuTooltipDetails;
 import static me.happy.rustbeds.utils.BedsUtils.consumeRespawnAnchorCharge;
 import static me.happy.rustbeds.utils.BedsUtils.getRespawnAnchorCharges;
 import static me.happy.rustbeds.utils.BedsUtils.isRegisteredRespawnPointPresent;
@@ -466,7 +466,7 @@ public class RespawnMenuHandler implements Listener {
         String title = session.getMode() == SessionMode.RESPAWN
                 ? plugin.message("menu-title", "Beds")
                 : plugin.message("manage-menu-title", "Manage beds");
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE, title);
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE, title);
         holder.setInventory(inventory);
 
         renderListMenu(inventory, entries, page, totalPages, session.getMode());
@@ -494,7 +494,7 @@ public class RespawnMenuHandler implements Listener {
 
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(), RespawnMenuHolder.ViewType.ACTIONS,
                 listPage, bedUuid);
-        Inventory inventory = Bukkit.createInventory(holder, ACTION_SIZE, plugin.message("bed-actions-title", "Manage bed"));
+        Inventory inventory = MenuItems.createInventory(holder, ACTION_SIZE, plugin.message("bed-actions-title", "Manage bed"));
         holder.setInventory(inventory);
 
         renderActionMenu(inventory, entry);
@@ -523,7 +523,7 @@ public class RespawnMenuHandler implements Listener {
 
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(), RespawnMenuHolder.ViewType.SHARE_LIST,
                 page, bedUuid);
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE,
                 sharingModeMessage("bed-share-title", "Share bed", "bed-transfer-title", "Transfer respawn"));
         holder.setInventory(inventory);
 
@@ -563,7 +563,7 @@ public class RespawnMenuHandler implements Listener {
 
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(),
                 RespawnMenuHolder.ViewType.SHARE_INVITE_LIST, page, null);
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE,
                 sharingModeMessage("bed-share-invites-title", "Share requests", "bed-transfer-invites-title",
                         "Transfer requests"));
         holder.setInventory(inventory);
@@ -590,7 +590,7 @@ public class RespawnMenuHandler implements Listener {
 
         RespawnMenuHolder holder = new RespawnMenuHolder(player.getUniqueId(),
                 RespawnMenuHolder.ViewType.SHARE_INVITE_ACTIONS, listPage, invite.inviteId().toString());
-        Inventory inventory = Bukkit.createInventory(holder, ACTION_SIZE,
+        Inventory inventory = MenuItems.createInventory(holder, ACTION_SIZE,
                 inviteModeMessage(invite, "bed-share-invite-actions-title", "Share request",
                         "bed-transfer-invite-actions-title", "Transfer request"));
         holder.setInventory(inventory);
@@ -766,27 +766,25 @@ public class RespawnMenuHandler implements Listener {
         ItemStack item = new ItemStack(entry.displayMaterial(), entry.displayAmount());
         ItemMeta meta = item.getItemMeta();
 
-        meta.setDisplayName(switch (entry.status()) {
+        MenuItems.setName(meta, switch (entry.status()) {
             case AVAILABLE -> ChatColor.GREEN + entry.displayName();
             case COOLDOWN -> ChatColor.GOLD + entry.displayName();
             case DEPLETED, DISABLED, MISSING, OBSTRUCTED -> ChatColor.RED + entry.displayName();
         });
-        hideMenuTooltipDetails(meta);
-        meta.setLore(buildBedLore(entry, mode == SessionMode.RESPAWN));
+        MenuItems.setLore(meta, buildBedLore(entry, mode == SessionMode.RESPAWN));
 
         PersistentDataContainer data = meta.getPersistentDataContainer();
         data.set(PluginKeys.uuid(), PersistentDataType.STRING, entry.uuid());
         data.set(PluginKeys.menuStatus(), PersistentDataType.STRING, entry.status().name());
 
-        item.setItemMeta(meta);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
     private static ItemStack createBedPreviewItem(BedMenuEntry entry) {
         ItemStack item = new ItemStack(entry.displayMaterial(), entry.displayAmount());
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.YELLOW + entry.displayName());
-        hideMenuTooltipDetails(meta);
+        MenuItems.setName(meta, ChatColor.YELLOW + entry.displayName());
 
         List<String> lore = new ArrayList<>();
         boolean hasMetadata = RespawnPointMenuLore.appendMetadataLore(lore, plugin, entry, true);
@@ -806,8 +804,8 @@ public class RespawnMenuHandler implements Listener {
             case OBSTRUCTED -> lore.add(ChatColor.RED + plugin.message("respawn-menu-bed-obstructed",
                     "Your bed is obstructed. Choose a different registered respawn point."));
         }
-        meta.setLore(lore);
-        item.setItemMeta(meta);
+        MenuItems.setLore(meta, lore);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
@@ -846,14 +844,13 @@ public class RespawnMenuHandler implements Listener {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(target);
-        meta.setDisplayName((target.isOnline() ? ChatColor.GREEN : ChatColor.RED) + getOfflinePlayerName(target));
-        hideMenuTooltipDetails(meta);
-        meta.setLore(List.of(ChatColor.GRAY + sharingModeMessage("bed-share-click",
+        MenuItems.setName(meta, (target.isOnline() ? ChatColor.GREEN : ChatColor.RED) + getOfflinePlayerName(target));
+        MenuItems.setLore(meta, List.of(ChatColor.GRAY + sharingModeMessage("bed-share-click",
                 "Click to send this player a share request.", "bed-transfer-click",
                 "Click to send this player a transfer request.")));
         meta.getPersistentDataContainer().set(PluginKeys.sharePlayer(), PersistentDataType.STRING,
                 target.getUniqueId().toString());
-        item.setItemMeta(meta);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
@@ -873,16 +870,15 @@ public class RespawnMenuHandler implements Listener {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(sender);
-        meta.setDisplayName(ChatColor.YELLOW + plugin.message("bed-share-invite-from", "From {1}")
+        MenuItems.setName(meta, ChatColor.YELLOW + plugin.message("bed-share-invite-from", "From {1}")
                 .replace("{1}", getInviteSenderName(invite)));
-        hideMenuTooltipDetails(meta);
-        meta.setLore(List.of(
+        MenuItems.setLore(meta, List.of(
                 ChatColor.GRAY + plugin.message("bed-share-invite-expires", "Expires in {1}.")
                         .replace("{1}", formatRemaining(invite.expiresAt())),
                 ChatColor.YELLOW + plugin.message("bed-share-invite-click", "Click to review this request.")));
         meta.getPersistentDataContainer().set(PluginKeys.shareInvite(), PersistentDataType.STRING,
                 invite.inviteId().toString());
-        item.setItemMeta(meta);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
@@ -891,9 +887,8 @@ public class RespawnMenuHandler implements Listener {
         Material material = bedData == null ? Material.BARRIER : bedData.getBedMaterial();
         ItemStack item = new ItemStack(material, 1);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.YELLOW + inviteModeMessage(invite, "bed-share-invite-preview",
+        MenuItems.setName(meta, ChatColor.YELLOW + inviteModeMessage(invite, "bed-share-invite-preview",
                 "Shared respawn point", "bed-transfer-invite-preview", "Transferred respawn point"));
-        hideMenuTooltipDetails(meta);
 
         List<String> lore = new ArrayList<>();
         lore.add(ChatColor.BLUE + transferredByLabel(invite, getInviteSenderName(invite)));
@@ -911,8 +906,8 @@ public class RespawnMenuHandler implements Listener {
                 lore.add(ChatColor.GRAY + bedData.formatCoords());
             }
         }
-        meta.setLore(lore);
-        item.setItemMeta(meta);
+        MenuItems.setLore(meta, lore);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 

@@ -3,20 +3,15 @@ package me.happy.rustbeds.utils;
 import me.happy.rustbeds.RustBeds;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.TileState;
 import org.bukkit.block.data.type.Bed;
 import org.bukkit.block.data.type.RespawnAnchor;
 import org.bukkit.entity.Player;
 import org.bukkit.permissions.PermissionAttachmentInfo;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
 import java.util.UUID;
@@ -64,7 +59,7 @@ public class BedsUtils {
         PlayerUtils.savePlayerBedsData(playerId, playerBedsData);
 
         if (clearBlockUuid && !hasAnyRemainingOwner(bedUUID, playerId)) {
-            clearRespawnPointUuid(bedData);
+            clearRespawnPointUuid(bedData, bedUUID);
         }
 
         return bedData;
@@ -107,28 +102,13 @@ public class BedsUtils {
             return false;
         }
 
-        Block bed = world.getBlockAt(locBed);
-        boolean isBed = false;
-        if (bed.getBlockData() instanceof Bed bedPart) {
-            // since the data is in the head we need to set the Block bed to its head
-            if ("FOOT".equals(bedPart.getPart().toString())) {
-                bed = (Block) bed.getRelative(bedPart.getFacing());
-            }
-            isBed = true;
-        }
-
-        if (!isBed) {
+        Block bed = checkIfIsBed(world.getBlockAt(locBed));
+        if (bed == null) {
             return false;
         }
 
-        BlockState blockState = bed.getState();
-        if (blockState instanceof TileState tileState) {
-            PersistentDataContainer container = tileState.getPersistentDataContainer();
-            String uuid = container.get(PluginKeys.uuid(), PersistentDataType.STRING);
-            return uuid != null && uuid.equalsIgnoreCase(bedUUID);
-        }
-
-        return false;
+        String uuid = plugin.getBedBlockStore().getUuid(bed);
+        return uuid != null && uuid.equalsIgnoreCase(bedUUID);
     }
 
     public static boolean isRegisteredAnchorPresent(Location anchorLocation, String anchorUUID) {
@@ -146,9 +126,15 @@ public class BedsUtils {
 
     public static Block checkIfIsBed(Block block) {
         if (block != null && block.getBlockData() instanceof Bed bedPart) {
-            // since the data is in the head we need to set the Block bed to its head
-            if ("FOOT".equals(bedPart.getPart().toString())) {
-                block = block.getRelative(bedPart.getFacing());
+            if (bedPart.getPart() == Bed.Part.FOOT) {
+                Block head = block.getRelative(bedPart.getFacing());
+                if (head.getType() != block.getType()
+                        || !(head.getBlockData() instanceof Bed headData)
+                        || headData.getPart() != Bed.Part.HEAD
+                        || headData.getFacing() != bedPart.getFacing()) {
+                    return null;
+                }
+                return head;
             }
             return block;
         }
@@ -184,22 +170,7 @@ public class BedsUtils {
             return generatedUuid;
         }
 
-        BlockState blockState = normalizedBlock.getState();
-        if (blockState instanceof TileState tileState) {
-            PersistentDataContainer container = tileState.getPersistentDataContainer();
-            if (!container.has(PluginKeys.uuid(), PersistentDataType.STRING)) {
-                container.set(PluginKeys.uuid(), PersistentDataType.STRING, generatedUuid);
-                tileState.update();
-                return generatedUuid;
-            }
-
-            String existingUuid = container.get(PluginKeys.uuid(), PersistentDataType.STRING);
-            if (existingUuid != null && !existingUuid.isBlank()) {
-                return existingUuid;
-            }
-        }
-
-        return null;
+        return plugin.getBedBlockStore().getOrCreateUuid(normalizedBlock, generatedUuid);
     }
 
     public static String getRespawnPointUuid(Block block) {
@@ -212,13 +183,7 @@ public class BedsUtils {
             return plugin.getRespawnAnchorStore().getAnchorUuid(normalizedBlock.getLocation());
         }
 
-        BlockState blockState = normalizedBlock.getState();
-        if (blockState instanceof TileState tileState) {
-            PersistentDataContainer container = tileState.getPersistentDataContainer();
-            return container.get(PluginKeys.uuid(), PersistentDataType.STRING);
-        }
-
-        return null;
+        return plugin.getBedBlockStore().getUuid(normalizedBlock);
     }
 
     public static int getRespawnAnchorCharges(BedData savedRespawnPoint) {
@@ -344,32 +309,11 @@ public class BedsUtils {
         return plugin.getPlayerBedStore().hasOwnerOtherThan(bedUUID, removedPlayerId);
     }
 
-    private static void clearRespawnPointUuid(BedData bedData) {
-        World world = Bukkit.getWorld(bedData.getBedWorld());
-        if (world == null) {
-            return;
-        }
-
-        Location locBed = bedData.getBedLocation();
-        if (locBed == null) {
-            return;
-        }
-
+    private static void clearRespawnPointUuid(BedData bedData, String uuid) {
         if (bedData.isRespawnAnchor()) {
-            plugin.getRespawnAnchorStore().clearAnchor(locBed);
-            return;
-        }
-
-        Block bed = checkIfIsBed(world.getBlockAt(locBed));
-        if (bed == null) {
-            return;
-        }
-
-        BlockState blockState = bed.getState();
-        if (blockState instanceof TileState tileState) {
-            PersistentDataContainer container = tileState.getPersistentDataContainer();
-            container.remove(PluginKeys.uuid());
-            tileState.update();
+            plugin.getRespawnAnchorStore().clearAnchor(uuid);
+        } else {
+            plugin.getBedBlockStore().clear(uuid);
         }
     }
 }

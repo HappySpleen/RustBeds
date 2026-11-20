@@ -1,6 +1,7 @@
 package me.happy.rustbeds.listeners;
 
 import me.happy.rustbeds.RustBeds;
+import me.happy.rustbeds.gui.MenuItems;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
 import me.happy.rustbeds.utils.AuditLog;
@@ -19,6 +20,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.MenuType;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.view.AnvilView;
 import org.bukkit.persistence.PersistentDataType;
@@ -28,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static me.happy.rustbeds.gui.MenuItems.hideMenuTooltipDetails;
 import static me.happy.rustbeds.utils.PlayerUtils.loadPlayerBedsData;
 import static me.happy.rustbeds.utils.PlayerUtils.savePlayerBedsData;
 
@@ -214,29 +215,32 @@ public class BedMenuInputListener implements Listener {
     }
 
     private static void openRenameAnvil(Player player, RenamePrompt prompt) {
-        InventoryView view = player.openAnvil(null, true);
-        if (view == null || !(view.getTopInventory() instanceof AnvilInventory anvilInventory)) {
+        AnvilView view = MenuType.ANVIL.builder()
+                .title(MenuItems.text(plugin.message("rename-anvil-title", "Rename respawn point")))
+                .checkReachable(false)
+                .build(player);
+        player.openInventory(view);
+        if (player.getOpenInventory() != view) {
             RENAME_PROMPTS.remove(player.getUniqueId());
             reopenPromptMenu(player, prompt);
             return;
         }
 
-        view.setTitle(plugin.message("rename-anvil-title", "Rename respawn point"));
+        AnvilInventory anvilInventory = view.getTopInventory();
         anvilInventory.setFirstItem(createRenameInputItem(prompt.currentName()));
-        anvilInventory.setRepairCost(0);
-        anvilInventory.setMaximumRepairCost(0);
+        view.setRepairCost(0);
+        view.setMaximumRepairCost(0);
         anvilInventory.setResult(createRenameResultItem(prompt.currentName()));
     }
 
     private static ItemStack createRenameInputItem(String currentName) {
         ItemStack item = new ItemStack(Material.NAME_TAG, 1);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(currentName);
-        hideMenuTooltipDetails(meta);
-        meta.setLore(List.of(ChatColor.GRAY + plugin.message("rename-anvil-input-lore",
+        MenuItems.setName(meta, currentName);
+        MenuItems.setLore(meta, List.of(ChatColor.GRAY + plugin.message("rename-anvil-input-lore",
                 "Enter a new respawn point name.")));
         meta.getPersistentDataContainer().set(PluginKeys.renameAnvilItem(), PersistentDataType.BOOLEAN, true);
-        item.setItemMeta(meta);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
@@ -246,22 +250,17 @@ public class BedMenuInputListener implements Listener {
         String displayName = renameText == null || renameText.isBlank()
                 ? plugin.message("rename-anvil-empty-name", "New respawn point name")
                 : renameText;
-        meta.setDisplayName(displayName);
-        hideMenuTooltipDetails(meta);
-        meta.setLore(List.of(ChatColor.GRAY + plugin.message("rename-anvil-save-lore",
+        MenuItems.setName(meta, displayName);
+        MenuItems.setLore(meta, List.of(ChatColor.GRAY + plugin.message("rename-anvil-save-lore",
                 "Click the result to save this name.")));
         meta.getPersistentDataContainer().set(PluginKeys.renameAnvilItem(), PersistentDataType.BOOLEAN, true);
-        item.setItemMeta(meta);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
     private static String getAnvilRenameText(InventoryView view, RenamePrompt prompt) {
         if (view instanceof AnvilView anvilView && anvilView.getRenameText() != null) {
             return anvilView.getRenameText();
-        }
-        if (view.getTopInventory() instanceof AnvilInventory anvilInventory
-                && anvilInventory.getRenameText() != null) {
-            return anvilInventory.getRenameText();
         }
         return prompt.currentName();
     }

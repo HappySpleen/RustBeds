@@ -5,13 +5,16 @@ import me.happy.rustbeds.models.BedData;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 
 import java.util.Collection;
@@ -19,6 +22,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
+import static me.happy.rustbeds.utils.BedsUtils.checkIfIsBed;
 import static me.happy.rustbeds.utils.BedsUtils.checkIfIsRespawnPoint;
 import static me.happy.rustbeds.utils.BedsUtils.getRespawnPointUuid;
 import static me.happy.rustbeds.utils.BedsUtils.removePlayerBed;
@@ -30,24 +34,32 @@ public class BedDestroyedListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         handleDestroyedBlocks(Set.of(event.getBlock()));
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBurn(BlockBurnEvent event) {
         handleDestroyedBlocks(Set.of(event.getBlock()));
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent event) {
         handleDestroyedBlocks(event.blockList());
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
         handleDestroyedBlocks(event.blockList());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        if (event.canBuild() && checkIfIsBed(event.getBlockPlaced()) != null) {
+            // A newly placed bed must not inherit the identity of a previous bed.
+            handleDestroyedBlocks(Set.of(event.getBlockPlaced()));
+        }
     }
 
     private void handleDestroyedBlocks(Collection<Block> blocks) {
@@ -69,10 +81,6 @@ public class BedDestroyedListener implements Listener {
 
     private void notifyOwners(Block bed, String bedUuid) {
         Set<UUID> owners = new LinkedHashSet<>(plugin.getPlayerBedStore().getOwners(bedUuid));
-        if (owners.isEmpty()) {
-            return;
-        }
-
         for (UUID ownerId : owners) {
             Player owner = Bukkit.getPlayer(ownerId);
             if (owner == null) {
@@ -91,8 +99,10 @@ public class BedDestroyedListener implements Listener {
         }
         plugin.getPlayerBedStore().deleteShareInvitesForBed(bedUuid);
 
-        if (bed.getType() == org.bukkit.Material.RESPAWN_ANCHOR) {
+        if (bed.getType() == Material.RESPAWN_ANCHOR) {
             plugin.getRespawnAnchorStore().clearAnchor(bed.getLocation());
+        } else {
+            plugin.getBedBlockStore().clear(bedUuid);
         }
     }
 

@@ -8,6 +8,7 @@ import me.happy.rustbeds.metrics.MetricsBootstrap;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.utils.AuditLog;
 import me.happy.rustbeds.utils.BackupManager;
+import me.happy.rustbeds.utils.BedBlockStore;
 import me.happy.rustbeds.utils.PlayerBedStore;
 import me.happy.rustbeds.utils.RespawnAnchorStore;
 import me.happy.rustbeds.utils.UpdateChecker;
@@ -26,9 +27,11 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.stream.Stream;
 
 public final class RustBeds extends JavaPlugin {
@@ -67,6 +70,7 @@ public final class RustBeds extends JavaPlugin {
     private Configuration messages;
     private BackupManager backupManager;
     private PlayerBedStore playerBedStore;
+    private BedBlockStore bedBlockStore;
     private RespawnAnchorStore respawnAnchorStore;
     private UpdateChecker updateChecker;
 
@@ -82,6 +86,12 @@ public final class RustBeds extends JavaPlugin {
         createLanguageConfig();
         MetricsBootstrap.start(this);
         backupManager.runStartupDatabaseBackups();
+        try {
+            bedBlockStore = new BedBlockStore(getDataFolder());
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not open the RustBeds bed registry", exception);
+        }
+        getServer().getPluginManager().registerEvents(new LegacyBedMigrationListener(bedBlockStore), this);
         playerBedStore = new PlayerBedStore(this);
         respawnAnchorStore = new RespawnAnchorStore(this);
         AuditLog.initialize(this);
@@ -118,6 +128,10 @@ public final class RustBeds extends JavaPlugin {
 
     public RespawnAnchorStore getRespawnAnchorStore() {
         return respawnAnchorStore;
+    }
+
+    public BedBlockStore getBedBlockStore() {
+        return bedBlockStore;
     }
 
     public String getPluginFileName() {
@@ -228,6 +242,13 @@ public final class RustBeds extends JavaPlugin {
         }
         if (respawnAnchorStore != null) {
             respawnAnchorStore.close();
+        }
+        if (bedBlockStore != null) {
+            try {
+                bedBlockStore.close();
+            } catch (SQLException exception) {
+                getLogger().log(Level.WARNING, "Could not close the RustBeds bed registry", exception);
+            }
         }
     }
 

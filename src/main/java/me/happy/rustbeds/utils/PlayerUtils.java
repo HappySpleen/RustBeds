@@ -92,9 +92,9 @@ public class PlayerUtils {
 
     private static void applyRespawnMenuDarkness(Player p) {
         p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, RESPAWN_MENU_DARKNESS_TICKS, 1,
-                false, false, false), true);
+                false, false, false));
         p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, RESPAWN_MENU_DARKNESS_TICKS, 1,
-                false, false, false), true);
+                false, false, false));
     }
 
     private static void clearRespawnMenuDarkness(Player p) {

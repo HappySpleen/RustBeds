@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.10.0-pre.1] - 2026-11-19
+
+### Changed
+- This test release targets Paper 26.3 (build 256) and Java 25 or newer.
+- RustBeds stores physical bed UUIDs in `respawn-points.db` because beds lost their block entity data in Minecraft 26.2. It imports the old UUIDs as Paper converts chunks, preserving saved names, owners, shares, cooldowns, and primary selections.
+- Updated menu titles, item text, tooltips, and the rename anvil to current Paper APIs.
+
+### Testing an upgrade
+- Back up the worlds and `plugins/RustBeds` together while the old server is stopped. Test with a separate copy and install this JAR before starting the copy on 26.3 for the first time. Remove the old RustBeds JAR from the copy's `plugins` folder.
+- If a chunk has already been converted without RustBeds listening, Paper cannot supply its original bed UUID. Test from a backup taken before that conversion.
+- Check an existing shared bed and primary point, a new bed, the rename prompt, death and respawn, and an anchor. Break a shared bed, check both owners' menus, and verify that a replacement at the same coordinates has to be registered again.
+
 ## [1.9.0] - 2026-05-15
 
 ### Added

@@ -274,7 +274,7 @@ public final class BackupManager {
     }
 
     private String pluginVersion() {
-        String version = plugin.getDescription().getVersion();
+        String version = plugin.getPluginMeta().getVersion();
         if (version == null || version.isBlank()) {
             return "unknown";
         }

@@ -5,6 +5,7 @@ import me.happy.rustbeds.gui.AdminBedsMenuHolder;
 import me.happy.rustbeds.gui.BedMenuEntry;
 import me.happy.rustbeds.gui.BedStatus;
 import me.happy.rustbeds.gui.RespawnPointMenuLore;
+import me.happy.rustbeds.gui.MenuItems;
 import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.models.PlayerBedsData;
 import me.happy.rustbeds.utils.AuditLog;
@@ -40,7 +41,6 @@ import static me.happy.rustbeds.gui.MenuItems.createActionItem;
 import static me.happy.rustbeds.gui.MenuItems.createControlItem;
 import static me.happy.rustbeds.gui.MenuItems.fillBottomRow;
 import static me.happy.rustbeds.gui.MenuItems.fillInventory;
-import static me.happy.rustbeds.gui.MenuItems.hideMenuTooltipDetails;
 import static me.happy.rustbeds.utils.BedsUtils.getRespawnAnchorCharges;
 import static me.happy.rustbeds.utils.BedsUtils.isRegisteredRespawnPointPresent;
 import static me.happy.rustbeds.utils.BedsUtils.removePlayerBed;
@@ -86,7 +86,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(),
                 AdminBedsMenuHolder.ViewType.OWNER_LIST, page, 0, null, null);
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE, plugin.message("admin-beds-title", "Admin beds"));
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE, plugin.message("admin-beds-title", "Admin beds"));
         holder.setInventory(inventory);
 
         renderOwnerMenu(inventory, owners, page, totalPages);
@@ -113,7 +113,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(), AdminBedsMenuHolder.ViewType.BED_LIST,
                 page, 0, ownerId, null);
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE,
                 plugin.message("admin-beds-owner-title", "Player beds"));
         holder.setInventory(inventory);
 
@@ -138,7 +138,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(), AdminBedsMenuHolder.ViewType.ACTIONS,
                 returnPage, 0, ownerId, bedUuid);
-        Inventory inventory = Bukkit.createInventory(holder, ACTION_SIZE,
+        Inventory inventory = MenuItems.createInventory(holder, ACTION_SIZE,
                 formatActionMenuTitle(entry));
         holder.setInventory(inventory);
 
@@ -168,7 +168,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(),
                 AdminBedsMenuHolder.ViewType.TELEPORT_TARGET_LIST, page, returnPage, ownerId, bedUuid);
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE,
                 plugin.message("admin-beds-teleport-title", "Teleport player"));
         holder.setInventory(inventory);
 
@@ -198,7 +198,7 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(),
                 AdminBedsMenuHolder.ViewType.GRANT_TARGET_LIST, page, returnPage, ownerId, bedUuid);
-        Inventory inventory = Bukkit.createInventory(holder, LIST_SIZE,
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE,
                 plugin.message("admin-beds-give-title", "Give respawn point"));
         holder.setInventory(inventory);
 
@@ -631,39 +631,36 @@ public class AdminBedsMenuHandler implements Listener {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(owner);
-        meta.setDisplayName((owner.isOnline() ? ChatColor.GREEN : ChatColor.RED)
+        MenuItems.setName(meta, (owner.isOnline() ? ChatColor.GREEN : ChatColor.RED)
                 + PlayerUtils.getOfflinePlayerName(owner));
-        hideMenuTooltipDetails(meta);
-        meta.setLore(List.of(
+        MenuItems.setLore(meta, List.of(
                 ChatColor.GRAY + plugin.message("admin-beds-owner-count", "Beds saved: {1}")
                         .replace("{1}", Integer.toString(getSavedBedCount(owner))),
                 ChatColor.YELLOW + plugin.message("admin-beds-owner-click",
                         "Click to manage this player's beds.")));
         meta.getPersistentDataContainer().set(PluginKeys.adminOwner(), PersistentDataType.STRING,
                 owner.getUniqueId().toString());
-        item.setItemMeta(meta);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
     private static ItemStack createBedListItem(BedMenuEntry entry) {
         ItemStack item = new ItemStack(entry.displayMaterial(), entry.displayAmount());
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(switch (entry.status()) {
+        MenuItems.setName(meta, switch (entry.status()) {
             case AVAILABLE -> ChatColor.GREEN + entry.displayName();
             case COOLDOWN, DEPLETED, DISABLED, MISSING, OBSTRUCTED -> ChatColor.RED + entry.displayName();
         });
-        hideMenuTooltipDetails(meta);
-        meta.setLore(buildBedLore(entry));
+        MenuItems.setLore(meta, buildBedLore(entry));
         meta.getPersistentDataContainer().set(PluginKeys.adminBed(), PersistentDataType.STRING, entry.uuid());
-        item.setItemMeta(meta);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
     private static ItemStack createBedPreviewItem(OfflinePlayer owner, BedMenuEntry entry) {
         ItemStack item = new ItemStack(entry.displayMaterial(), entry.displayAmount());
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.YELLOW + entry.displayName());
-        hideMenuTooltipDetails(meta);
+        MenuItems.setName(meta, ChatColor.YELLOW + entry.displayName());
 
         List<String> lore = new ArrayList<>();
         lore.add(formatOwnerLoreName(owner));
@@ -676,8 +673,8 @@ public class AdminBedsMenuHandler implements Listener {
             case MISSING -> lore.add(ChatColor.RED
                     + plugin.message("respawn-menu-bed-missing", "This bed no longer exists."));
         }
-        meta.setLore(lore);
-        item.setItemMeta(meta);
+        MenuItems.setLore(meta, lore);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
@@ -685,13 +682,12 @@ public class AdminBedsMenuHandler implements Listener {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(target);
-        meta.setDisplayName(ChatColor.GREEN + target.getName());
-        hideMenuTooltipDetails(meta);
-        meta.setLore(List.of(ChatColor.GRAY + plugin.message("admin-beds-target-click",
+        MenuItems.setName(meta, ChatColor.GREEN + target.getName());
+        MenuItems.setLore(meta, List.of(ChatColor.GRAY + plugin.message("admin-beds-target-click",
                 "Click to teleport this player to the bed.")));
         meta.getPersistentDataContainer().set(PluginKeys.adminTarget(), PersistentDataType.STRING,
                 target.getUniqueId().toString());
-        item.setItemMeta(meta);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 
@@ -699,14 +695,13 @@ public class AdminBedsMenuHandler implements Listener {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(target);
-        meta.setDisplayName((target.isOnline() ? ChatColor.GREEN : ChatColor.RED)
+        MenuItems.setName(meta, (target.isOnline() ? ChatColor.GREEN : ChatColor.RED)
                 + PlayerUtils.getOfflinePlayerName(target));
-        hideMenuTooltipDetails(meta);
-        meta.setLore(List.of(ChatColor.GRAY + plugin.message("admin-beds-give-target-click",
+        MenuItems.setLore(meta, List.of(ChatColor.GRAY + plugin.message("admin-beds-give-target-click",
                 "Click to give this respawn point to the player.")));
         meta.getPersistentDataContainer().set(PluginKeys.adminTarget(), PersistentDataType.STRING,
                 target.getUniqueId().toString());
-        item.setItemMeta(meta);
+        MenuItems.applyMenuMeta(item, meta);
         return item;
     }
 

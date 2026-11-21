@@ -46,12 +46,15 @@ public class PlayerRespawnListener implements Listener {
         Location defaultRespawn = e.getRespawnLocation().clone();
         playerData.set(PluginKeys.spawnLoc(), PersistentDataType.STRING, locationToString(defaultRespawn));
 
-        if (plugin.getConfig().getBoolean("spawn-on-sky") && world.getEnvironment() == Environment.NORMAL) {
+        boolean spawnOnSky = plugin.getConfig().getBoolean("spawn-on-sky")
+                && world.getEnvironment() == Environment.NORMAL;
+        if (spawnOnSky) {
             Location skyRespawn = defaultRespawn.clone();
             skyRespawn.setY(Math.min(world.getMaxHeight() - 1, defaultRespawn.getY() + 300));
             e.setRespawnLocation(skyRespawn);
         }
 
-        beginRespawnMenu(player, plugin.getConfig().getLong("respawn-menu-open-delay-ticks"));
+        beginRespawnMenu(player, plugin.getConfig().getLong("respawn-menu-open-delay-ticks"),
+                spawnOnSky && plugin.getBedrockMenus().isBedrockPlayer(player));
     }
 }

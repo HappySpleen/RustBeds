@@ -3,6 +3,7 @@ package me.happy.rustbeds;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import me.happy.rustbeds.commands.RespawnMenuCommand;
+import me.happy.rustbeds.gui.BedrockMenus;
 import me.happy.rustbeds.listeners.*;
 import me.happy.rustbeds.metrics.MetricsBootstrap;
 import me.happy.rustbeds.models.BedData;
@@ -73,6 +74,7 @@ public final class RustBeds extends JavaPlugin {
     private BedBlockStore bedBlockStore;
     private RespawnAnchorStore respawnAnchorStore;
     private UpdateChecker updateChecker;
+    private BedrockMenus bedrockMenus;
 
     private static RustBeds instance;
 
@@ -96,6 +98,7 @@ public final class RustBeds extends JavaPlugin {
         respawnAnchorStore = new RespawnAnchorStore(this);
         AuditLog.initialize(this);
         updateChecker = new UpdateChecker(this);
+        bedrockMenus = new BedrockMenus(this);
 
         getServer().getPluginManager().registerEvents(new PlayerRespawnListener(this), this);
         getServer().getPluginManager().registerEvents(new RespawnMenuHandler(this), this);
@@ -120,6 +123,10 @@ public final class RustBeds extends JavaPlugin {
 
     public static RustBeds getInstance() {
         return instance;
+    }
+
+    public BedrockMenus getBedrockMenus() {
+        return bedrockMenus;
     }
 
     public PlayerBedStore getPlayerBedStore() {

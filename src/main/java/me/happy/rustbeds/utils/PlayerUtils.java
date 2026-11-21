@@ -12,6 +12,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.util.Vector;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -60,6 +61,18 @@ public class PlayerUtils {
         }
     }
 
+    public static void holdRespawnInSky(Player player) {
+        setPropPlayer(player);
+
+        PersistentDataContainer playerData = player.getPersistentDataContainer();
+        if (!playerData.has(PluginKeys.respawnMenuGravity(), PersistentDataType.BOOLEAN)) {
+            playerData.set(PluginKeys.respawnMenuGravity(), PersistentDataType.BOOLEAN, player.hasGravity());
+        }
+        player.setGravity(false);
+        player.setVelocity(new Vector());
+        player.setFallDistance(0);
+    }
+
     public static void undoPropPlayer(Player p) {
 
         PersistentDataContainer playerData = p.getPersistentDataContainer();
@@ -77,13 +90,18 @@ public class PlayerUtils {
             playerData.remove(PluginKeys.lastWalkSpeed());
             clearRespawnMenuDarkness(p);
 
-            if (plugin.getConfig().getBoolean("spawn-on-sky")) {
-                p.setAllowFlight(playerData.get(PluginKeys.allowFly(), PersistentDataType.BOOLEAN));
+            Boolean allowedFlight = playerData.get(PluginKeys.allowFly(), PersistentDataType.BOOLEAN);
+            if (allowedFlight != null) {
                 p.setFlying(false);
-
+                p.setAllowFlight(allowedFlight);
                 playerData.remove(PluginKeys.allowFly());
             }
 
+            Boolean hadGravity = playerData.get(PluginKeys.respawnMenuGravity(), PersistentDataType.BOOLEAN);
+            if (hadGravity != null) {
+                p.setGravity(hadGravity);
+                playerData.remove(PluginKeys.respawnMenuGravity());
+            }
 
             p.closeInventory();
         }

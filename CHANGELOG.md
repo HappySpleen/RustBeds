@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.10.0-pre.2] - 2026-11-20
+
+### Added
+- Added native Bedrock forms for respawn selection, bed management, sharing and transfer requests, and admin menus. The forms work with Geyser-Spigot or a Geyser proxy forwarding player data to Floodgate on Paper.
+
+### Fixed
+- Fixed a classloader conflict that prevented Geyser and Floodgate from opening Bedrock forms for `/beds` and death respawns.
+- Bedrock players stay at their sky spawn while choosing a respawn point when `spawn-on-sky` is enabled.
+
 ## [1.10.0-pre.1] - 2026-11-19
 
 ### Changed

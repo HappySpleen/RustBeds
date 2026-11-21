@@ -36,6 +36,7 @@ import static me.happy.rustbeds.utils.PlayerUtils.savePlayerBedsData;
 public class BedMenuInputListener implements Listener {
     private static final Map<UUID, RenamePrompt> RENAME_PROMPTS = new HashMap<>();
     private static final int ANVIL_RESULT_SLOT = 2;
+    private static final int MAX_NAME_LENGTH = 50;
 
     private static RustBeds plugin;
 
@@ -44,16 +45,56 @@ public class BedMenuInputListener implements Listener {
     }
 
     public static void beginRenamePrompt(Player player, String bedUuid, int returnPage, String currentName) {
-        RenamePrompt prompt = RenamePrompt.player(bedUuid, returnPage, currentName);
-        RENAME_PROMPTS.put(player.getUniqueId(), prompt);
-        openRenameAnvil(player, prompt);
+        beginRenamePrompt(player, RenamePrompt.player(bedUuid, returnPage, currentName));
     }
 
     public static void beginRenamePrompt(Player admin, UUID ownerId, String bedUuid, int returnPage,
             String currentName) {
-        RenamePrompt prompt = RenamePrompt.admin(ownerId, bedUuid, returnPage, currentName);
-        RENAME_PROMPTS.put(admin.getUniqueId(), prompt);
-        openRenameAnvil(admin, prompt);
+        beginRenamePrompt(admin, RenamePrompt.admin(ownerId, bedUuid, returnPage, currentName));
+    }
+
+    private static void beginRenamePrompt(Player player, RenamePrompt prompt) {
+        if (!plugin.getBedrockMenus().rename(player,
+                plugin.message("rename-anvil-title", "Rename respawn point"),
+                plugin.message("rename-anvil-input-lore", "Enter a new respawn point name."),
+                prompt.currentName(), input -> handleBedrockRename(player, prompt, input), () -> {
+                    if (!checkBedrockRenamePermission(player, prompt)) {
+                        return;
+                    }
+                    player.sendMessage(ChatColor.YELLOW + plugin.message("rename-prompt-cancelled", "Renaming cancelled."));
+                    reopenPromptMenu(player, prompt);
+                })) {
+            RENAME_PROMPTS.put(player.getUniqueId(), prompt);
+            openRenameAnvil(player, prompt);
+        }
+    }
+
+    private static void handleBedrockRename(Player player, RenamePrompt prompt, String input) {
+        if (!checkBedrockRenamePermission(player, prompt)) {
+            return;
+        }
+
+        String name = input == null ? "" : input.replaceAll("[\\x00-\\x1F\\x7F\u00A7]", "").trim();
+        if (name.isBlank()) {
+            player.sendMessage(ChatColor.RED + plugin.message("rename-prompt-empty",
+                    "Respawn point name cannot be empty."));
+        } else if (name.length() > MAX_NAME_LENGTH) {
+            player.sendMessage(ChatColor.RED + plugin.message("rename-prompt-too-long",
+                    "Respawn point names can be at most {1} characters.")
+                    .replace("{1}", Integer.toString(MAX_NAME_LENGTH)));
+        } else {
+            handleRenameInput(player, prompt, name);
+            return;
+        }
+        beginRenamePrompt(player, prompt);
+    }
+
+    private static boolean checkBedrockRenamePermission(Player player, RenamePrompt prompt) {
+        if (prompt.isAdminPrompt() && !plugin.hasAdminPermission(player)) {
+            AdminBedsMenuHandler.openOwnerMenu(player, 0);
+            return false;
+        }
+        return true;
     }
 
     @EventHandler
@@ -139,7 +180,7 @@ public class BedMenuInputListener implements Listener {
         cleanPlayerRenameItems(event.getPlayer());
     }
 
-    private void handleRenameInput(Player player, RenamePrompt prompt, String input) {
+    private static void handleRenameInput(Player player, RenamePrompt prompt, String input) {
         if (input.isBlank()) {
             player.sendMessage(ChatColor.RED + plugin.message("rename-prompt-empty", "Bed name cannot be empty."));
             reopenPromptMenu(player, prompt);
@@ -154,7 +195,7 @@ public class BedMenuInputListener implements Listener {
         handlePlayerRenameInput(player, prompt, input);
     }
 
-    private void handlePlayerRenameInput(Player player, RenamePrompt prompt, String input) {
+    private static void handlePlayerRenameInput(Player player, RenamePrompt prompt, String input) {
         PlayerBedsData playerBedsData = loadPlayerBedsData(player);
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {
             player.sendMessage(ChatColor.RED + plugin.message("bed-not-registered-message",
@@ -179,7 +220,7 @@ public class BedMenuInputListener implements Listener {
         RespawnMenuHandler.openManageMenu(player, prompt.returnPage());
     }
 
-    private void handleAdminRenameInput(Player admin, RenamePrompt prompt, String input) {
+    private static void handleAdminRenameInput(Player admin, RenamePrompt prompt, String input) {
         OfflinePlayer owner = Bukkit.getOfflinePlayer(prompt.ownerId());
         PlayerBedsData playerBedsData = loadPlayerBedsData(owner);
         if (playerBedsData == null || playerBedsData.getPlayerBedData() == null) {

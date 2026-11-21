@@ -3,6 +3,7 @@ version: '${project.version}'
 main: me.happy.rustbeds.RustBeds
 api-version: '26.3'
 load: STARTUP
+softdepend: [Geyser-Spigot, floodgate]
 authors: [HappySpleen]
 description: A plugin that lets players choose which saved respawn point to use.
 website: https://github.com/HappySpleen

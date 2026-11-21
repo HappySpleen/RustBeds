@@ -86,11 +86,12 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(),
                 AdminBedsMenuHolder.ViewType.OWNER_LIST, page, 0, null, null);
-        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE, plugin.message("admin-beds-title", "Admin beds"));
+        String title = plugin.message("admin-beds-title", "Admin beds");
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE, title);
         holder.setInventory(inventory);
 
         renderOwnerMenu(inventory, owners, page, totalPages);
-        admin.openInventory(inventory);
+        presentMenu(admin, holder, title, INFO_SLOT);
     }
 
     public static void openOwnerBedsMenu(Player admin, UUID ownerId, int requestedPage) {
@@ -113,12 +114,12 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(), AdminBedsMenuHolder.ViewType.BED_LIST,
                 page, 0, ownerId, null);
-        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE,
-                plugin.message("admin-beds-owner-title", "Player beds"));
+        String title = plugin.message("admin-beds-owner-title", "Player beds");
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE, title);
         holder.setInventory(inventory);
 
         renderOwnerBedsMenu(inventory, owner, entries, page, totalPages);
-        admin.openInventory(inventory);
+        presentMenu(admin, holder, title, INFO_SLOT);
     }
 
     public static void openActionMenu(Player admin, UUID ownerId, int returnPage, String bedUuid) {
@@ -138,12 +139,12 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(), AdminBedsMenuHolder.ViewType.ACTIONS,
                 returnPage, 0, ownerId, bedUuid);
-        Inventory inventory = MenuItems.createInventory(holder, ACTION_SIZE,
-                formatActionMenuTitle(entry));
+        String title = formatActionMenuTitle(entry);
+        Inventory inventory = MenuItems.createInventory(holder, ACTION_SIZE, title);
         holder.setInventory(inventory);
 
         renderActionMenu(inventory, owner, entry);
-        admin.openInventory(inventory);
+        presentMenu(admin, holder, title, ACTION_PREVIEW_SLOT);
     }
 
     private static void openTeleportTargetMenu(Player admin, UUID ownerId, String bedUuid, int returnPage,
@@ -168,12 +169,12 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(),
                 AdminBedsMenuHolder.ViewType.TELEPORT_TARGET_LIST, page, returnPage, ownerId, bedUuid);
-        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE,
-                plugin.message("admin-beds-teleport-title", "Teleport player"));
+        String title = plugin.message("admin-beds-teleport-title", "Teleport player");
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE, title);
         holder.setInventory(inventory);
 
         renderTeleportTargetMenu(inventory, owner, entry, targets, page, totalPages);
-        admin.openInventory(inventory);
+        presentMenu(admin, holder, title, INFO_SLOT);
     }
 
     private static void openGrantTargetMenu(Player admin, UUID ownerId, String bedUuid, int returnPage,
@@ -198,12 +199,26 @@ public class AdminBedsMenuHandler implements Listener {
 
         AdminBedsMenuHolder holder = new AdminBedsMenuHolder(admin.getUniqueId(),
                 AdminBedsMenuHolder.ViewType.GRANT_TARGET_LIST, page, returnPage, ownerId, bedUuid);
-        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE,
-                plugin.message("admin-beds-give-title", "Give respawn point"));
+        String title = plugin.message("admin-beds-give-title", "Give respawn point");
+        Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE, title);
         holder.setInventory(inventory);
 
         renderGrantTargetMenu(inventory, owner, entry, targets, page, totalPages);
-        admin.openInventory(inventory);
+        presentMenu(admin, holder, title, INFO_SLOT);
+    }
+
+    private static void presentMenu(Player admin, AdminBedsMenuHolder holder, String title, int informationSlot) {
+        Inventory inventory = holder.getInventory();
+        boolean openedForm = plugin.getBedrockMenus().open(admin, inventory, title, informationSlot, holder, slot -> {
+            if (plugin.hasAdminPermission(admin)) {
+                selectMenuSlot(admin, holder, slot, inventory.getItem(slot));
+            } else {
+                openOwnerMenu(admin, 0);
+            }
+        }, () -> {});
+        if (!openedForm) {
+            admin.openInventory(inventory);
+        }
     }
 
     @EventHandler
@@ -222,14 +237,16 @@ public class AdminBedsMenuHandler implements Listener {
             return;
         }
 
+        selectMenuSlot(admin, holder, event.getSlot(), event.getCurrentItem());
+    }
+
+    private static void selectMenuSlot(Player admin, AdminBedsMenuHolder holder, int slot, ItemStack item) {
         switch (holder.getViewType()) {
-            case OWNER_LIST -> handleOwnerListClick(admin, event.getSlot(), event.getCurrentItem(), holder);
-            case BED_LIST -> handleBedListClick(admin, event.getSlot(), event.getCurrentItem(), holder);
-            case ACTIONS -> handleActionMenuClick(admin, event.getSlot(), holder);
-            case TELEPORT_TARGET_LIST ->
-                    handleTeleportTargetMenuClick(admin, event.getSlot(), event.getCurrentItem(), holder);
-            case GRANT_TARGET_LIST ->
-                    handleGrantTargetMenuClick(admin, event.getSlot(), event.getCurrentItem(), holder);
+            case OWNER_LIST -> handleOwnerListClick(admin, slot, item, holder);
+            case BED_LIST -> handleBedListClick(admin, slot, item, holder);
+            case ACTIONS -> handleActionMenuClick(admin, slot, holder);
+            case TELEPORT_TARGET_LIST -> handleTeleportTargetMenuClick(admin, slot, item, holder);
+            case GRANT_TARGET_LIST -> handleGrantTargetMenuClick(admin, slot, item, holder);
         }
     }
 

@@ -67,6 +67,10 @@ public final class PluginKeys {
         return Holder.ALLOW_FLY;
     }
 
+    public static NamespacedKey respawnMenuGravity() {
+        return Holder.RESPAWN_MENU_GRAVITY;
+    }
+
     public static NamespacedKey lastWalkSpeed() {
         return Holder.LAST_WALK_SPEED;
     }
@@ -91,6 +95,8 @@ public final class PluginKeys {
         private static final NamespacedKey IS_INVISIBLE = new NamespacedKey(LEGACY_DATA_NAMESPACE, "isinvisible");
         private static final NamespacedKey CAN_PICKUP_ITEMS = new NamespacedKey(LEGACY_DATA_NAMESPACE, "canpickupitems");
         private static final NamespacedKey ALLOW_FLY = new NamespacedKey(LEGACY_DATA_NAMESPACE, "allowfly");
+        private static final NamespacedKey RESPAWN_MENU_GRAVITY =
+                new NamespacedKey(LEGACY_DATA_NAMESPACE, "respawn-menu-gravity");
         private static final NamespacedKey LAST_WALK_SPEED = new NamespacedKey(LEGACY_DATA_NAMESPACE, "lastwalkspeed");
     }
 }

@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-22
+
+RustBeds now targets **Paper 26.3** and requires **Java 25 or newer**. This release adds native Bedrock menus and migrates existing saved beds during the Paper upgrade.
+
+### Added
+
+- Native Bedrock forms for `/beds`, respawn selection after death, saved point management, renaming, share and transfer requests, and `/beds admin`. They work with Geyser-Spigot or a Geyser proxy configured to forward player data to Floodgate on the Paper server. Java players continue to use inventory and anvil menus.
+- A **Respawn point details** screen for Bedrock players. Bedrock share and transfer notifications direct players to `/beds requests` to review pending requests.
+
+### Changed
+
+- Physical bed IDs now live in `plugins/RustBeds/respawn-points.db`. RustBeds imports legacy bed IDs as Paper converts world chunks, preserving saved names, ownership, shares, cooldowns, and primary respawn points.
+- Updated menu titles, item text, tooltips, the Java rename anvil, and backup version reporting to use current Paper APIs.
+
+### Fixed
+
+- Fixed a Geyser and Floodgate classloader conflict that prevented Bedrock forms from opening through `/beds` or after death.
+- Bedrock players stay at their sky spawn while choosing a respawn point when `spawn-on-sky` is enabled. Closing the death form sends them to their default spawn.
+- Bed cleanup respects cancelled destruction events, clears pending requests for destroyed points, and prevents a replacement bed from inheriting the old bed’s registration.
+
+### Upgrading from 1.9.0
+
+Stop your old server and back up your worlds and `plugins/RustBeds` together. Test the upgrade on a copy, and **replace the old RustBeds JAR before the copy starts on Paper 26.3 for the first time**. If Paper already converted a chunk without RustBeds capturing its bed IDs, use a backup from before conversion to recover those registrations.
+
 ## [1.10.0-pre.2] - 2026-11-20
 
 ### Added

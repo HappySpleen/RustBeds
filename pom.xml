@@ -6,7 +6,7 @@
 
     <groupId>me.happy</groupId>
     <artifactId>RustBeds</artifactId>
-    <version>1.10.0</version>
+    <version>1.11.0</version>
     <packaging>jar</packaging>
 
     <name>RustBeds</name>
@@ -54,6 +54,26 @@
                         <goals>
                             <goal>shade</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>package-bedrock-details-layout</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <zip destfile="${project.build.directory}/RustBeds-Bedrock-Details.mcpack"
+                                     basedir="${project.basedir}/src/main/bedrock-details-pack"/>
+                            </target>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

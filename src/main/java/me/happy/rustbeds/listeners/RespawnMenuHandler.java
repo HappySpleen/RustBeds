@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.IntFunction;
 
 import static me.happy.rustbeds.gui.MenuItems.createActionItem;
 import static me.happy.rustbeds.gui.MenuItems.createControlItem;
@@ -102,7 +103,17 @@ public class RespawnMenuHandler implements Listener {
 
     public static void openCommandMenu(Player player) {
         if (isRespawnProtected(player)) {
-            beginRespawnMenu(player, 0L, false);
+            UUID playerId = player.getUniqueId();
+            BedMenuSession session = ACTIVE_SESSIONS.get(playerId);
+            if (session != null && session.getMode() == SessionMode.RESPAWN) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (ACTIVE_SESSIONS.get(playerId) == session && player.isOnline()) {
+                        showListMenu(player, session.getListPage());
+                    }
+                });
+            } else {
+                beginRespawnMenu(player, 0L, false, null);
+            }
             return;
         }
 
@@ -113,21 +124,12 @@ public class RespawnMenuHandler implements Listener {
         showShareInviteListMenu(player, 0);
     }
 
-    public static void beginRespawnMenu(Player player, long openDelayTicks, boolean bedrockSkyRespawn) {
+    public static void beginRespawnMenu(Player player, long openDelayTicks, boolean bedrockSkyRespawn,
+            Location deathLocation) {
         UUID playerId = player.getUniqueId();
-        BedMenuSession existingSession = ACTIVE_SESSIONS.get(playerId);
-        if (existingSession != null && existingSession.getMode() == SessionMode.RESPAWN) {
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (ACTIVE_SESSIONS.get(playerId) == existingSession && player.isOnline()) {
-                    showListMenu(player, existingSession.getListPage());
-                }
-            }, Math.max(0L, openDelayTicks));
-            return;
-        }
-
         cancelSession(playerId);
 
-        BedMenuSession session = new BedMenuSession(SessionMode.RESPAWN);
+        BedMenuSession session = new BedMenuSession(SessionMode.RESPAWN, deathLocation);
         session.bedrockSkyRespawn = bedrockSkyRespawn;
         ACTIVE_SESSIONS.put(playerId, session);
         scheduleRespawnTimeout(player, session);
@@ -147,20 +149,43 @@ public class RespawnMenuHandler implements Listener {
                 return;
             }
 
-            setPropPlayer(player);
-            player.sendActionBar(Component.text(stripColors(plugin.message("respawn-menu-prompt", "Choose a respawn bed")))
-                    .color(NamedTextColor.GOLD)
-                    .decorate(TextDecoration.BOLD));
-            showListMenu(player, 0);
+            if (session.bedrockRespawnLocation != null) {
+                // Geyser can render the pre-death position until it receives a fresh teleport.
+                player.teleport(session.bedrockRespawnLocation);
+                session.bedrockRespawnLocation = null;
+                // Let Geyser process and flush the teleport before sending the form.
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (ACTIVE_SESSIONS.get(playerId) == session && player.isOnline()) {
+                        showInitialRespawnMenu(player);
+                    }
+                }, 2L);
+                return;
+            }
+
+            showInitialRespawnMenu(player);
         }, Math.max(0L, openDelayTicks));
+    }
+
+    private static void showInitialRespawnMenu(Player player) {
+        setPropPlayer(player);
+        player.sendActionBar(Component.text(stripColors(plugin.message("respawn-menu-prompt", "Choose a respawn bed")))
+                .color(NamedTextColor.GOLD)
+                .decorate(TextDecoration.BOLD));
+        showListMenu(player, 0);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPostRespawn(PlayerPostRespawnEvent event) {
         Player player = event.getPlayer();
         BedMenuSession session = ACTIVE_SESSIONS.get(player.getUniqueId());
-        if (session != null && session.bedrockSkyRespawn) {
-            session.bedrockSkyLocation = event.getRespawnedLocation().clone();
+        if (session == null || session.getMode() != SessionMode.RESPAWN
+                || !plugin.getBedrockMenus().isBedrockPlayer(player)) {
+            return;
+        }
+
+        session.bedrockRespawnLocation = event.getRespawnLocation().clone();
+        if (session.bedrockSkyRespawn) {
+            session.bedrockSkyLocation = session.bedrockRespawnLocation;
             PlayerUtils.holdRespawnInSky(player);
         }
     }
@@ -191,7 +216,7 @@ public class RespawnMenuHandler implements Listener {
         BedMenuSession session = ACTIVE_SESSIONS.get(playerId);
         if (session == null || session.getMode() != SessionMode.MANAGE) {
             cancelSession(playerId);
-            session = new BedMenuSession(SessionMode.MANAGE);
+            session = new BedMenuSession(SessionMode.MANAGE, null);
             ACTIVE_SESSIONS.put(playerId, session);
         }
 
@@ -526,9 +551,12 @@ public class RespawnMenuHandler implements Listener {
         Inventory inventory = MenuItems.createInventory(holder, LIST_SIZE, title);
         holder.setInventory(inventory);
 
-        renderListMenu(inventory, entries, page, totalPages, session.getMode());
+        renderListMenu(inventory, entries, page, totalPages, session);
         session.setListPage(page);
-        if (openBedrockMenu(player, holder, title, INFO_SLOT)) {
+        int startIndex = page * PAGE_SIZE;
+        int pointCount = Math.min(PAGE_SIZE, entries.size() - startIndex);
+        if (openBedrockMenu(player, holder, title, INFO_SLOT,
+                slot -> slot < pointCount ? entries.get(startIndex + slot).bedData() : null)) {
             session.cancelRefreshTask();
         } else {
             syncRefreshTask(player, session, hasDynamicEntries(entries));
@@ -560,7 +588,8 @@ public class RespawnMenuHandler implements Listener {
         holder.setInventory(inventory);
 
         renderActionMenu(inventory, entry);
-        presentMenu(player, holder, title, ACTION_PREVIEW_SLOT);
+        presentMenu(player, holder, title, ACTION_PREVIEW_SLOT,
+                slot -> slot == ACTION_PREVIEW_SLOT ? entry.bedData() : null);
     }
 
     private static void showShareMenu(Player player, String bedUuid, int requestedPage) {
@@ -597,7 +626,7 @@ public class RespawnMenuHandler implements Listener {
         BedMenuSession session = ACTIVE_SESSIONS.get(player.getUniqueId());
         if (session == null || session.getMode() != SessionMode.MANAGE) {
             cancelSession(player.getUniqueId());
-            session = new BedMenuSession(SessionMode.MANAGE);
+            session = new BedMenuSession(SessionMode.MANAGE, null);
             ACTIVE_SESSIONS.put(player.getUniqueId(), session);
         }
 
@@ -631,7 +660,10 @@ public class RespawnMenuHandler implements Listener {
         holder.setInventory(inventory);
 
         renderShareInviteListMenu(inventory, invites, page, totalPages);
-        presentMenu(player, holder, title, INFO_SLOT);
+        int startIndex = page * PAGE_SIZE;
+        int pointCount = Math.min(PAGE_SIZE, invites.size() - startIndex);
+        presentMenu(player, holder, title, INFO_SLOT,
+                slot -> slot < pointCount ? getInviteBedData(invites.get(startIndex + slot)) : null);
     }
 
     private static void showShareInviteActionMenu(Player player, int listPage, UUID inviteId) {
@@ -658,20 +690,27 @@ public class RespawnMenuHandler implements Listener {
         holder.setInventory(inventory);
 
         renderShareInviteActionMenu(inventory, invite);
-        presentMenu(player, holder, title, INVITE_PREVIEW_SLOT);
+        presentMenu(player, holder, title, INVITE_PREVIEW_SLOT,
+                slot -> slot == INVITE_PREVIEW_SLOT ? getInviteBedData(invite) : null);
     }
 
     private static void presentMenu(Player player, RespawnMenuHolder holder, String title, int informationSlot) {
-        if (!openBedrockMenu(player, holder, title, informationSlot)) {
+        presentMenu(player, holder, title, informationSlot, slot -> null);
+    }
+
+    private static void presentMenu(Player player, RespawnMenuHolder holder, String title, int informationSlot,
+            IntFunction<BedData> pointAtSlot) {
+        if (!openBedrockMenu(player, holder, title, informationSlot, pointAtSlot)) {
             player.openInventory(holder.getInventory());
         }
     }
 
-    private static boolean openBedrockMenu(Player player, RespawnMenuHolder holder, String title, int informationSlot) {
+    private static boolean openBedrockMenu(Player player, RespawnMenuHolder holder, String title, int informationSlot,
+            IntFunction<BedData> pointAtSlot) {
         UUID playerId = player.getUniqueId();
         BedMenuSession session = ACTIVE_SESSIONS.get(playerId);
         Inventory inventory = holder.getInventory();
-        return plugin.getBedrockMenus().open(player, inventory, title, informationSlot, session, slot -> {
+        return plugin.getBedrockMenus().open(player, inventory, title, informationSlot, session, pointAtSlot, slot -> {
             if (ACTIVE_SESSIONS.get(playerId) == session) {
                 selectMenuSlot(player, holder, slot, inventory.getItem(slot));
             }
@@ -688,14 +727,14 @@ public class RespawnMenuHandler implements Listener {
     }
 
     private static void renderListMenu(Inventory inventory, List<BedMenuEntry> entries, int page, int totalPages,
-            SessionMode mode) {
+            BedMenuSession session) {
         inventory.clear();
         fillBottomRow(inventory);
 
         int startIndex = page * PAGE_SIZE;
         int endIndex = Math.min(startIndex + PAGE_SIZE, entries.size());
         for (int slot = 0; slot + startIndex < endIndex; slot++) {
-            inventory.setItem(slot, createBedListItem(entries.get(startIndex + slot), mode));
+            inventory.setItem(slot, createBedListItem(entries.get(startIndex + slot), session));
         }
 
         if (page > 0) {
@@ -703,7 +742,7 @@ public class RespawnMenuHandler implements Listener {
                     ChatColor.YELLOW + plugin.message("respawn-menu-previous", "Previous page"), List.of()));
         }
 
-        if (mode == SessionMode.RESPAWN) {
+        if (session.getMode() == SessionMode.RESPAWN) {
             inventory.setItem(INFO_SLOT, createControlItem(Material.COMPASS,
                     ChatColor.GOLD + plugin.message("respawn-menu-page", "Page {1}/{2}")
                             .replace("{1}", Integer.toString(page + 1))
@@ -850,7 +889,7 @@ public class RespawnMenuHandler implements Listener {
                 ChatColor.YELLOW + plugin.message("bed-action-back", "Back to points"), List.of()));
     }
 
-    private static ItemStack createBedListItem(BedMenuEntry entry, SessionMode mode) {
+    private static ItemStack createBedListItem(BedMenuEntry entry, BedMenuSession session) {
         ItemStack item = new ItemStack(entry.displayMaterial(), entry.displayAmount());
         ItemMeta meta = item.getItemMeta();
 
@@ -859,7 +898,7 @@ public class RespawnMenuHandler implements Listener {
             case COOLDOWN -> ChatColor.GOLD + entry.displayName();
             case DEPLETED, DISABLED, MISSING, OBSTRUCTED -> ChatColor.RED + entry.displayName();
         });
-        MenuItems.setLore(meta, buildBedLore(entry, mode == SessionMode.RESPAWN));
+        MenuItems.setLore(meta, buildBedLore(entry, session));
 
         PersistentDataContainer data = meta.getPersistentDataContainer();
         data.set(PluginKeys.uuid(), PersistentDataType.STRING, entry.uuid());
@@ -1426,14 +1465,17 @@ public class RespawnMenuHandler implements Listener {
         }
     }
 
-    private static List<String> buildBedLore(BedMenuEntry entry, boolean respawnMode) {
+    private static List<String> buildBedLore(BedMenuEntry entry, BedMenuSession session) {
         List<String> lore = new ArrayList<>();
         boolean hasMetadata = RespawnPointMenuLore.appendMetadataLore(lore, plugin, entry, true);
         if (hasMetadata) {
             lore.add("");
         }
 
-        if (respawnMode) {
+        if (session.getMode() == SessionMode.RESPAWN) {
+            if (session.deathLocation != null) {
+                lore.add(RespawnPointMenuLore.deathDistanceLine(plugin, entry, session.deathLocation));
+            }
             switch (entry.status()) {
                 case AVAILABLE -> lore.add(ChatColor.YELLOW
                         + plugin.message("respawn-menu-click-respawn", "Left-click to respawn here."));
@@ -1571,7 +1613,7 @@ public class RespawnMenuHandler implements Listener {
             return;
         }
 
-        renderListMenu(inventory, entries, page, totalPages, session.getMode());
+        renderListMenu(inventory, entries, page, totalPages, session);
         syncRefreshTask(player, session, hasDynamicEntries(entries));
     }
 
@@ -1604,15 +1646,18 @@ public class RespawnMenuHandler implements Listener {
 
     private static final class BedMenuSession {
         private final SessionMode mode;
+        private final Location deathLocation;
         private boolean bedrockSkyRespawn;
+        private Location bedrockRespawnLocation;
         private Location bedrockSkyLocation;
         private int timeoutTaskId = -1;
         private int refreshTaskId = -1;
         private int listPage = 0;
         private boolean suppressNextClose;
 
-        private BedMenuSession(SessionMode mode) {
+        private BedMenuSession(SessionMode mode, Location deathLocation) {
             this.mode = mode;
+            this.deathLocation = deathLocation;
         }
 
         public SessionMode getMode() {

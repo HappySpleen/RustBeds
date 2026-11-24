@@ -24,11 +24,14 @@ record BedrockFormTransport(Class<?> apiType, Object api, UUID target, Runnable 
                 Method build = builder.getMethod("build");
                 Method simple = loader.loadClass(CUMULUS + "form.SimpleForm").getMethod("builder");
                 Method custom = loader.loadClass(CUMULUS + "form.CustomForm").getMethod("builder");
+                Class<?> imageType = loader.loadClass(CUMULUS + "util.FormImage$Type");
                 return new FormApi(findSendMethod(apiType, build.getReturnType()), builder.getMethod("title", String.class),
                         builder.getMethod("validResultHandler", Consumer.class),
                         builder.getMethod("closedOrInvalidResultHandler", Runnable.class), build,
                         simple, simple.getReturnType().getMethod("content", String.class),
                         simple.getReturnType().getMethod("button", String.class),
+                        simple.getReturnType().getMethod("button", String.class, imageType, String.class),
+                        imageType.getField("PATH").get(null),
                         loader.loadClass(CUMULUS + "response.SimpleFormResponse").getMethod("clickedButtonId"),
                         custom, custom.getReturnType().getMethod("input", String.class, String.class, String.class),
                         loader.loadClass(CUMULUS + "response.CustomFormResponse").getMethod("asInput", int.class));
@@ -66,14 +69,18 @@ record BedrockFormTransport(Class<?> apiType, Object api, UUID target, Runnable 
         return null;
     }
 
-    boolean sendChoices(String title, String content, List<String> buttons, IntConsumer onSelect,
+    boolean sendChoices(String title, String content, List<Button> buttons, IntConsumer onSelect,
             Runnable onClose) throws ReflectiveOperationException {
         // Each provider builds its forms with the Cumulus classes visible to its own API.
         FormApi forms = FORM_APIS.get(apiType);
         Object builder = forms.simple().invoke(null);
         forms.content().invoke(builder, content);
-        for (String button : buttons) {
-            forms.button().invoke(builder, button);
+        for (Button button : buttons) {
+            if (button.imagePath() == null) {
+                forms.button().invoke(builder, button.text());
+            } else {
+                forms.imageButton().invoke(builder, button.text(), forms.pathImageType(), button.imagePath());
+            }
         }
         return send(forms, builder, title, forms.clickedButtonId(), value -> onSelect.accept((int) value), onClose);
     }
@@ -106,9 +113,16 @@ record BedrockFormTransport(Class<?> apiType, Object api, UUID target, Runnable 
         return (boolean) (target == null ? sendForm.invoke(api, form) : sendForm.invoke(api, target, form));
     }
 
+    record Button(String text, String imagePath, Runnable action) {
+        Button(String text, Runnable action) {
+            this(text, null, action);
+        }
+    }
+
     private record FormApi(Method sendForm, Method title, Method validResultHandler,
                            Method closedOrInvalidResultHandler, Method build,
-                           Method simple, Method content, Method button, Method clickedButtonId,
+                           Method simple, Method content, Method button, Method imageButton, Object pathImageType,
+                           Method clickedButtonId,
                            Method custom, Method input, Method asInput) {
     }
 }

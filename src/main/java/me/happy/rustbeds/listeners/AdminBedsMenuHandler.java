@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.IntFunction;
 
 import static me.happy.rustbeds.gui.MenuItems.createActionItem;
 import static me.happy.rustbeds.gui.MenuItems.createControlItem;
@@ -119,7 +120,10 @@ public class AdminBedsMenuHandler implements Listener {
         holder.setInventory(inventory);
 
         renderOwnerBedsMenu(inventory, owner, entries, page, totalPages);
-        presentMenu(admin, holder, title, INFO_SLOT);
+        int startIndex = page * PAGE_SIZE;
+        int pointCount = Math.min(PAGE_SIZE, entries.size() - startIndex);
+        presentMenu(admin, holder, title, INFO_SLOT,
+                slot -> slot < pointCount ? entries.get(startIndex + slot).bedData() : null);
     }
 
     public static void openActionMenu(Player admin, UUID ownerId, int returnPage, String bedUuid) {
@@ -144,7 +148,8 @@ public class AdminBedsMenuHandler implements Listener {
         holder.setInventory(inventory);
 
         renderActionMenu(inventory, owner, entry);
-        presentMenu(admin, holder, title, ACTION_PREVIEW_SLOT);
+        presentMenu(admin, holder, title, ACTION_PREVIEW_SLOT,
+                slot -> slot == ACTION_PREVIEW_SLOT ? entry.bedData() : null);
     }
 
     private static void openTeleportTargetMenu(Player admin, UUID ownerId, String bedUuid, int returnPage,
@@ -208,8 +213,13 @@ public class AdminBedsMenuHandler implements Listener {
     }
 
     private static void presentMenu(Player admin, AdminBedsMenuHolder holder, String title, int informationSlot) {
+        presentMenu(admin, holder, title, informationSlot, slot -> null);
+    }
+
+    private static void presentMenu(Player admin, AdminBedsMenuHolder holder, String title, int informationSlot,
+            IntFunction<BedData> pointAtSlot) {
         Inventory inventory = holder.getInventory();
-        boolean openedForm = plugin.getBedrockMenus().open(admin, inventory, title, informationSlot, holder, slot -> {
+        boolean openedForm = plugin.getBedrockMenus().open(admin, inventory, title, informationSlot, holder, pointAtSlot, slot -> {
             if (plugin.hasAdminPermission(admin)) {
                 selectMenuSlot(admin, holder, slot, inventory.getItem(slot));
             } else {

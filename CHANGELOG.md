@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-24
+
+Requires **Paper 26.3** and **Java 25 or newer**.
+
+### Added
+
+- After death, Java and Bedrock players can see how far each saved bed or respawn anchor is from where they died, alongside its availability or cooldown. Points in another world are labeled accordingly.
+- When audit logging is enabled, player deaths are recorded with the world and block coordinates.
+
+### Bedrock menus
+
+- Saved point buttons show the bed’s color or the respawn anchor’s charge level. These icons appear in respawn selection, point management, share and transfer requests, and staff menus.
+- Respawn point details now open in a read-only view and display the anchor’s current charges. The optional `RustBeds-Bedrock-Details.mcpack` places each texture beside its details. The default view displays the details as text.
+
+### Fixed
+
+- Interacting with a bed in a RustBeds-managed world preserves the player’s existing Minecraft spawn.
+- Geyser shows Bedrock players at their respawn location before opening the death menu, with sky spawn enabled or disabled.
+- **Respawn at spawn** sends Bedrock players to world spawn when Minecraft would otherwise fall back to a previously saved vanilla bed.
+
+### Optional Bedrock layout
+
+To enable side-by-side textures and details, place `RustBeds-Bedrock-Details.mcpack` in the `packs` folder of the Geyser instance that accepts your Bedrock connections. Set `bedrock-details-layout-pack: true` in RustBeds’ `config.yml`, restart Geyser and Paper, then reconnect the Bedrock client.
+
 ## [1.10.0] - 2026-11-22
 
 RustBeds now targets **Paper 26.3** and requires **Java 25 or newer**. This release adds native Bedrock menus and migrates existing saved beds during the Paper upgrade.

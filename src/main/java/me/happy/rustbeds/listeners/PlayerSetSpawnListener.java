@@ -9,7 +9,9 @@ import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerSpawnChangeEvent;
 
 import java.util.UUID;
 
@@ -27,31 +29,40 @@ public class PlayerSetSpawnListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
-    public void onPlayerSetSpawn(PlayerSetSpawnEvent event) {
-        if (event.getLocation() == null || event.getLocation().getWorld() == null) {
-            return;
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerSpawnChange(PlayerSpawnChangeEvent event) {
+        // Paper calls this event before PlayerSetSpawnEvent.
+        if (event.getCause() == PlayerSpawnChangeEvent.Cause.BED
+                && plugin.isWorldEnabled(event.getPlayer().getWorld().getName())) {
+            event.setCancelled(true);
         }
+    }
 
-        if (!plugin.isWorldEnabled(event.getLocation().getWorld().getName())) {
-            return;
-        }
-
-        if (event.getCause() == PlayerSetSpawnEvent.Cause.BED) {
-            // This plugin manages bed respawns itself, so skip the vanilla spawn update and chat message.
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerSetBedSpawn(PlayerSetSpawnEvent event) {
+        if (event.getCause() == PlayerSetSpawnEvent.Cause.BED
+                && plugin.isWorldEnabled(event.getPlayer().getWorld().getName())) {
             event.setNotifyPlayer(false);
             event.setCancelled(true);
-            return;
         }
+    }
 
+    @EventHandler
+    public void onPlayerSetAnchorSpawn(PlayerSetSpawnEvent event) {
         if (event.getCause() != PlayerSetSpawnEvent.Cause.RESPAWN_ANCHOR
                 || !plugin.getConfig().getBoolean("respawn-anchors-enabled")) {
             return;
         }
 
+        Location location = event.getLocation();
+        if (location == null || location.getWorld() == null
+                || !plugin.isWorldEnabled(location.getWorld().getName())) {
+            return;
+        }
+
         event.setNotifyPlayer(false);
         event.setCancelled(true);
-        registerRespawnAnchor(event.getPlayer(), event.getLocation());
+        registerRespawnAnchor(event.getPlayer(), location);
     }
 
     private void registerRespawnAnchor(Player player, Location respawnLocation) {

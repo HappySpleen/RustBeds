@@ -1,13 +1,16 @@
 package me.happy.rustbeds.listeners;
 
 import me.happy.rustbeds.RustBeds;
+import me.happy.rustbeds.utils.AuditLog;
 import me.happy.rustbeds.utils.PluginKeys;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerRespawnEvent.RespawnReason;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -21,6 +24,12 @@ public class PlayerRespawnListener implements Listener {
 
     public PlayerRespawnListener(RustBeds plugin) {
         PlayerRespawnListener.plugin = plugin;
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        AuditLog.logPlayerDeath(player, player.getLocation());
     }
 
     @EventHandler
@@ -42,8 +51,16 @@ public class PlayerRespawnListener implements Listener {
         }
 
         Player player = e.getPlayer();
+        boolean bedrockPlayer = plugin.getBedrockMenus().isBedrockPlayer(player);
+        Location deathLocation = e.getRespawnReason() == RespawnReason.DEATH ? player.getLastDeathLocation() : null;
         PersistentDataContainer playerData = player.getPersistentDataContainer();
         Location defaultRespawn = e.getRespawnLocation().clone();
+        if (bedrockPlayer && e.getRespawnReason() == RespawnReason.DEATH && e.isBedSpawn()) {
+            // A vanilla bed spawn saved before RustBeds intercepted it must not become the menu fallback.
+            world = plugin.getServer().getRespawnWorld();
+            defaultRespawn = world.getSpawnLocation();
+            e.setRespawnLocation(defaultRespawn);
+        }
         playerData.set(PluginKeys.spawnLoc(), PersistentDataType.STRING, locationToString(defaultRespawn));
 
         boolean spawnOnSky = plugin.getConfig().getBoolean("spawn-on-sky")
@@ -55,6 +72,6 @@ public class PlayerRespawnListener implements Listener {
         }
 
         beginRespawnMenu(player, plugin.getConfig().getLong("respawn-menu-open-delay-ticks"),
-                spawnOnSky && plugin.getBedrockMenus().isBedrockPlayer(player));
+                spawnOnSky && bedrockPlayer, deathLocation);
     }
 }

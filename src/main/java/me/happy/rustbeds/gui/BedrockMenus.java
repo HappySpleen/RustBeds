@@ -1,12 +1,19 @@
 package me.happy.rustbeds.gui;
 
 import me.happy.rustbeds.RustBeds;
+import me.happy.rustbeds.gui.BedrockFormTransport.Button;
+import me.happy.rustbeds.models.BedData;
 import me.happy.rustbeds.utils.PluginKeys;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Bed;
+import org.bukkit.block.data.type.RespawnAnchor;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -17,14 +24,19 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.IntFunction;
 import java.util.logging.Level;
 
 public final class BedrockMenus {
+    // The resource pack recognizes this formatting sequence on read-only rows.
+    private static final String DETAILS_ROW_MARKER = "§r§0§r§0§r§0§r";
+
     private final RustBeds plugin;
     private Forms forms;
 
@@ -38,9 +50,10 @@ public final class BedrockMenus {
     }
 
     public boolean open(Player player, Inventory inventory, String title, int informationSlot, Object menu,
-            IntConsumer onSelect, Runnable onClose) {
+            IntFunction<BedData> pointAtSlot, IntConsumer onSelect, Runnable onClose) {
         Forms available = availableForms();
-        return available != null && available.open(player, inventory, title, informationSlot, menu, onSelect, onClose);
+        return available != null
+                && available.open(player, inventory, title, informationSlot, menu, pointAtSlot, onSelect, onClose);
     }
 
     public boolean rename(Player player, String title, String label, String currentName, Consumer<String> onSubmit,
@@ -67,6 +80,46 @@ public final class BedrockMenus {
         return forms;
     }
 
+    static String pointTexture(BedData point) {
+        return pointAppearance(point).texture();
+    }
+
+    static PointAppearance pointAppearance(BedData point) {
+        Location location = point.getBedLocation();
+        World world = location == null ? null : location.getWorld();
+        BlockData block = null;
+        if (world != null && (point.isRespawnAnchor()
+                || world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4))) {
+            block = world.getBlockAt(location).getBlockData();
+        }
+
+        if (point.isRespawnAnchor()) {
+            if (block instanceof RespawnAnchor anchor) {
+                int charges = anchor.getCharges();
+                String texture = "textures/blocks/respawn_anchor_side" + Math.clamp(charges, 0, 4);
+                return new PointAppearance(texture, charges, anchor.getMaximumCharges());
+            }
+            return new PointAppearance("textures/blocks/respawn_anchor_side0", 0, 0);
+        }
+
+        Material material = block instanceof Bed bed ? bed.getMaterial() : point.getBedMaterial();
+        return new PointAppearance(bedTexture(material), 0, 0);
+    }
+
+    private static String bedTexture(Material material) {
+        if (material == Material.LIGHT_GRAY_BED) {
+            return "textures/items/bed_silver";
+        }
+        String name = material == null ? "" : material.name();
+        if (!name.endsWith("_BED") || name.startsWith("LEGACY_")) {
+            return "textures/items/bed_white";
+        }
+        return "textures/items/bed_" + name.substring(0, name.length() - "_BED".length()).toLowerCase(Locale.ROOT);
+    }
+
+    record PointAppearance(String texture, int charges, int maxCharges) {
+    }
+
     // Keep optional API references in classes loaded only when their plugins are enabled.
     private static final class Forms {
         private static final LegacyComponentSerializer LEGACY_TEXT = LegacyComponentSerializer.legacySection();
@@ -84,17 +137,22 @@ public final class BedrockMenus {
         }
 
         private boolean open(Player player, Inventory inventory, String title, int informationSlot, Object menu,
-                IntConsumer onSelect, Runnable onClose) {
+                IntFunction<BedData> pointAtSlot, IntConsumer onSelect, Runnable onClose) {
             BedrockFormTransport client = BedrockFormTransport.find(player.getUniqueId());
             if (client == null) {
                 return false;
             }
 
-            List<String> buttons = new ArrayList<>();
+            List<Button> buttons = new ArrayList<>();
             List<String> information = new ArrayList<>();
-            List<String> pointDetails = new ArrayList<>();
-            List<Runnable> actions = new ArrayList<>();
+            List<PointDetails> pointDetails = new ArrayList<>();
+            String detailsTitle = plugin.message("beds-point-details", "Respawn point details");
+            boolean respawnList = inventory.getHolder() instanceof RespawnMenuHolder holder
+                    && holder.getViewType() == RespawnMenuHolder.ViewType.RESPAWN_LIST;
             String manageHint = ChatColor.stripColor(plugin.message("manage-menu-click-manage", "Click to manage this bed."));
+            String respawnHint = ChatColor.stripColor(plugin.message("respawn-menu-click-respawn",
+                    "Left-click to respawn here."));
+            Runnable reopen = () -> open(player, inventory, title, informationSlot, menu, pointAtSlot, onSelect, onClose);
             // These inventories supply the existing menu text and slot identities without opening a container.
             for (int slot = 0; slot < inventory.getSize(); slot++) {
                 ItemStack item = inventory.getItem(slot);
@@ -111,42 +169,81 @@ public final class BedrockMenus {
 
                 List<Component> sourceLore = meta.lore();
                 List<String> lore = sourceLore == null ? List.of() : sourceLore.stream().map(LEGACY_TEXT::serialize).toList();
+                BedData point = pointAtSlot.apply(slot);
+                String image = point == null ? null : pointTexture(point);
+                if (slot == informationSlot && point != null) {
+                    PointDetails preview = new PointDetails(name, lore, point);
+                    buttons.add(new Button(name + buttonSubtitle(lore, false), image,
+                            () -> showDetails(player, client, menu, detailsTitle, List.of(preview), reopen)));
+                    continue;
+                }
                 if (slot == informationSlot || item.getType() == Material.GRAY_DYE) {
                     information.add(lore.isEmpty() ? name : name + "\n" + String.join("\n", lore));
                     continue;
                 }
 
-                buttons.add(name + buttonSubtitle(lore));
+                boolean savedPoint = isSavedPoint(meta);
                 int selectedSlot = slot;
-                actions.add(() -> onSelect.accept(selectedSlot));
-                if (lore.size() > 1 && isSavedPoint(meta)) {
-                    pointDetails.add(name + "\n" + String.join("\n", detailsLore(lore, manageHint)));
+                buttons.add(new Button(name + buttonSubtitle(lore, respawnList && savedPoint), image,
+                        () -> onSelect.accept(selectedSlot)));
+                if (point != null && savedPoint) {
+                    pointDetails.add(new PointDetails(name, detailsLore(lore, manageHint, respawnHint), point));
                 }
             }
 
             if (!pointDetails.isEmpty()) {
-                String detailsTitle = plugin.message("beds-point-details", "Respawn point details");
-                buttons.add(detailsTitle);
-                actions.add(() -> showDetails(player, client, menu, detailsTitle, pointDetails, onClose,
-                        () -> open(player, inventory, title, informationSlot, menu, onSelect, onClose)));
+                buttons.add(new Button(detailsTitle,
+                        () -> showDetails(player, client, menu, detailsTitle, pointDetails, reopen)));
             }
 
-            showChoices(player, client, menu, title, String.join("\n\n", information), buttons, actions, onClose);
+            showChoices(player, client, menu, title, String.join("\n\n", information), buttons, onClose);
             return true;
         }
 
-        private void showDetails(Player player, BedrockFormTransport client, Object menu, String title, List<String> details,
-                Runnable onClose, Runnable onBack) {
-            showChoices(player, client, menu, title, String.join("\n\n", details),
-                    List.of(plugin.message("bed-action-back", "Back to beds")), List.of(onBack), onClose);
+        private void showDetails(Player player, BedrockFormTransport client, Object menu, String title,
+                List<PointDetails> details, Runnable onBack) {
+            boolean useLayoutPack = plugin.getConfig().getBoolean("bedrock-details-layout-pack");
+            List<Button> rows = new ArrayList<>();
+            List<String> text = new ArrayList<>();
+            for (PointDetails point : details) {
+                PointAppearance appearance = pointAppearance(point.data());
+                String description = pointDescription(point, appearance);
+                if (useLayoutPack) {
+                    rows.add(new Button(DETAILS_ROW_MARKER + description, appearance.texture(), onBack));
+                } else {
+                    text.add(description);
+                }
+            }
+            showChoices(player, client, menu, title, String.join("\n\n", text), rows, onBack);
+        }
+
+        private String pointDescription(PointDetails point, PointAppearance appearance) {
+            List<String> lore = new ArrayList<>(point.lore());
+            if (point.data().isRespawnAnchor()) {
+                String charges = RespawnPointMenuLore.anchorChargesLine(plugin, appearance.charges(),
+                        appearance.maxCharges());
+                // Anchor charges are the last line of saved-point metadata, before the status separator.
+                int separator = lore.indexOf("");
+                if (separator > 0) {
+                    lore.set(separator - 1, charges);
+                } else {
+                    lore.add(charges);
+                }
+                if (appearance.charges() > 0) {
+                    String depleted = ChatColor.stripColor(plugin.message("respawn-anchor-depleted",
+                            "This respawn anchor has no charges."));
+                    lore.removeIf(line -> ChatColor.stripColor(line).equals(depleted));
+                }
+            }
+            lore.removeIf(String::isEmpty);
+            return lore.isEmpty() ? point.name() : point.name() + "\n" + String.join("\n", lore);
         }
 
         private void showChoices(Player player, BedrockFormTransport client, Object menu,
-                String title, String content, List<String> buttons,
-                List<Runnable> actions, Runnable onClose) {
+                String title, String content, List<Button> buttons, Runnable onClose) {
             OpenForm pending = new OpenForm(menu, client);
             show(player.getUniqueId(), pending, () -> client.sendChoices(title, content, buttons, button -> {
-                Runnable action = button >= 0 && button < actions.size() ? actions.get(button) : onClose;
+                Runnable action = button >= 0 && button < buttons.size() ? buttons.get(button).action() : onClose;
                 complete(player, pending, action);
             }, () -> complete(player, pending, onClose)), onClose);
         }
@@ -222,23 +319,25 @@ public final class BedrockMenus {
             });
         }
 
-        private static String buttonSubtitle(List<String> lore) {
+        private static String buttonSubtitle(List<String> lore, boolean showAllStatusLines) {
             // Status lines follow a blank separator after the saved point's metadata.
             int separator = lore.indexOf("");
             int line = separator + 1;
-            return line < lore.size() ? "\n" + lore.get(line) : "";
+            if (line >= lore.size()) {
+                return "";
+            }
+            return "\n" + (showAllStatusLines ? String.join("\n", lore.subList(line, lore.size())) : lore.get(line));
         }
 
-        private static List<String> detailsLore(List<String> lore, String manageHint) {
-            if (!ChatColor.stripColor(lore.getLast()).equals(manageHint)) {
+        private static List<String> detailsLore(List<String> lore, String manageHint, String respawnHint) {
+            if (lore.isEmpty()) {
                 return lore;
             }
-
-            int end = lore.size() - 1;
-            if (lore.get(end - 1).isEmpty()) {
-                end--;
+            String last = ChatColor.stripColor(lore.getLast());
+            if (!last.equals(manageHint) && !last.equals(respawnHint)) {
+                return lore;
             }
-            return lore.subList(0, end);
+            return lore.subList(0, lore.size() - 1);
         }
 
         private static boolean isSavedPoint(ItemMeta meta) {
@@ -253,6 +352,9 @@ public final class BedrockMenus {
         }
 
         private record OpenForm(Object menu, BedrockFormTransport client) {
+        }
+
+        private record PointDetails(String name, List<String> lore, BedData data) {
         }
     }
 }

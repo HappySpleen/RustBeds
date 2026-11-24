@@ -217,14 +217,20 @@ jobs:
           set -euo pipefail
 
           test -f "$ARTIFACT"
+          assets=("$ARTIFACT#RustBeds $VERSION.jar")
+          if [[ -d src/main/bedrock-details-pack ]]; then
+            pack="target/RustBeds-Bedrock-Details.mcpack"
+            test -f "$pack"
+            assets+=("$pack")
+          fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" \
               --title "RustBeds $VERSION" \
               --notes-file release-notes.md
-            gh release upload "$TAG" "$ARTIFACT#RustBeds $VERSION.jar" --clobber
+            gh release upload "$TAG" "${assets[@]}" --clobber
           else
-            gh release create "$TAG" "$ARTIFACT#RustBeds $VERSION.jar" \
+            gh release create "$TAG" "${assets[@]}" \
               --verify-tag \
               --title "RustBeds $VERSION" \
               --notes-file release-notes.md

@@ -2,6 +2,7 @@ package me.happy.rustbeds.utils;
 
 import me.happy.rustbeds.RustBeds;
 import me.happy.rustbeds.models.BedData;
+import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
@@ -54,6 +55,10 @@ public final class AuditLog {
         }
     }
 
+    public static void logPlayerDeath(Player player, Location location) {
+        write("player", buildEntry("player_death", player, null, null, null, null, location));
+    }
+
     public static void logPlayerRename(Player player, String pointUuid, BedData point, String oldName,
             String newName) {
         writePlayer("rename_point", player, player, null, pointUuid, point,
@@ -104,12 +109,12 @@ public final class AuditLog {
 
     private static void writePlayer(String action, Player actor, OfflinePlayer owner, OfflinePlayer target,
             String pointUuid, BedData point, String... details) {
-        write("player", buildEntry(action, actor, owner, target, pointUuid, point, details));
+        write("player", buildEntry(action, actor, owner, target, pointUuid, point, null, details));
     }
 
     private static void writeAdmin(String action, Player actor, OfflinePlayer owner, OfflinePlayer target,
             String pointUuid, BedData point, String... details) {
-        write("admin", buildEntry(action, actor, owner, target, pointUuid, point, details));
+        write("admin", buildEntry(action, actor, owner, target, pointUuid, point, null, details));
     }
 
     private static void write(String logType, String entry) {
@@ -130,11 +135,18 @@ public final class AuditLog {
     }
 
     private static String buildEntry(String action, Player actor, OfflinePlayer owner, OfflinePlayer target,
-            String pointUuid, BedData point, String... details) {
+            String pointUuid, BedData point, Location eventLocation, String... details) {
         AuditLogSettings settings = auditLogSettings(RustBeds.getInstance());
         Map<String, String> detailValues = detailsMap(details);
         String actionName = friendlyActionName(action);
         String timestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now().withNano(0));
+        String world = point == null ? null : point.getBedWorld();
+        String blockLocation = point == null ? null : formatBlockLocation(point.getBedCoords());
+        if (eventLocation != null) {
+            world = eventLocation.getWorld().getName();
+            blockLocation = eventLocation.getBlockX() + " " + eventLocation.getBlockY() + " "
+                    + eventLocation.getBlockZ();
+        }
         AuditEvent event = new AuditEvent(
                 timestamp,
                 action,
@@ -147,8 +159,8 @@ public final class AuditLog {
                 pointTypeDetail(point),
                 modeDetail(detailValues.get("mode")),
                 normalizedBoolean(detailValues.get("exclusive_bed")),
-                point == null ? null : point.getBedWorld(),
-                point == null ? null : formatBlockLocation(point.getBedCoords()),
+                world,
+                blockLocation,
                 point == null ? null : formatSpawnLocation(point.getBedSpawnCoords(), settings.coordinateDecimals()),
                 pointUuid,
                 playerUuid(actor),
@@ -276,6 +288,9 @@ public final class AuditLog {
 
         String summary;
         switch (action) {
+            case "player_death":
+                summary = actorName + " died.";
+                break;
             case "rename_point":
                 String renamePoint = hasText(details.get("old_name")) || hasText(details.get("new_name"))
                         ? ownedPointKindDescription(actor, owner, point)

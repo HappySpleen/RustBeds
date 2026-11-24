@@ -1,0 +1,17 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "RustBeds Bedrock Details",
+    "description": "Displays RustBeds respawn-point textures beside read-only details.",
+    "uuid": "316458d5-00ff-4e4e-adf4-5d09e811ec14",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 0]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "ef6cc8a6-054f-4400-a144-db9d92c4c872",
+      "version": [1, 0, 0]
+    }
+  ]
+}

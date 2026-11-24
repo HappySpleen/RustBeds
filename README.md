@@ -53,6 +53,8 @@ RustBeds was previously published as `MultipleBedSpawn`. Current releases use th
 
 See the full [Installation](https://github.com/HappySpleen/RustBeds/wiki/Installation) page for update notes, folder layout, and source-build details.
 
+For side-by-side textures and text in Bedrock respawn-point details, place `RustBeds-Bedrock-Details.mcpack` in the `packs` folder of the Geyser instance that accepts the Bedrock connection. Set `bedrock-details-layout-pack: true` in RustBeds' `config.yml`, restart Geyser and Paper, and reconnect the Bedrock client. With the setting disabled, the details screen displays a read-only text list.
+
 ## Commands
 
 | Command | Sender | Permission | Purpose |

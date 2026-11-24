@@ -36,7 +36,7 @@ bed-cooldown: 120
 denylist: []
 allowlist: []
 
-# Audit logs for server-owner visibility into player and admin respawn-point actions.
+# Audit logs for player deaths and player and admin respawn-point actions.
 # Logs are written to plugins/RustBeds/Logs when enabled.
 audit-log:
   # If true, RustBeds writes player and admin audit logs.
@@ -86,6 +86,10 @@ disable-bed-world-desc: true
 
 # UI-only option: hides bed coordinates from saved-bed lore in menus.
 disable-bed-coords-desc: false
+
+# Enable after adding RustBeds-Bedrock-Details.mcpack to your Geyser packs folder.
+# The pack lays out the texture and text side by side in the read-only details view.
+bedrock-details-layout-pack: false
 
 # If true, the respawn flow places the player about 300 blocks above their normal
 # respawn point and lets them fly while choosing a bed.

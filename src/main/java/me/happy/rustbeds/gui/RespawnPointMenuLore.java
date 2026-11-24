@@ -2,6 +2,7 @@ package me.happy.rustbeds.gui;
 
 import me.happy.rustbeds.RustBeds;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 
 import java.util.List;
 
@@ -43,6 +44,24 @@ public final class RespawnPointMenuLore {
         return true;
     }
 
+    public static String deathDistanceLine(RustBeds plugin, BedMenuEntry entry, Location deathLocation) {
+        if (!deathLocation.isWorldLoaded()) {
+            return ChatColor.GRAY + plugin.message("respawn-menu-death-distance-unavailable", "Death distance unavailable");
+        }
+
+        Location bedLocation = entry.bedData().getBedLocation();
+        if (bedLocation == null || !deathLocation.getWorld().equals(bedLocation.getWorld())) {
+            return ChatColor.GRAY + plugin.message("respawn-menu-death-distance-other-world",
+                    "Death was in a different world");
+        }
+
+        long blocks = Math.round(deathLocation.distance(bedLocation));
+        return ChatColor.GRAY + (blocks == 1
+                ? plugin.message("respawn-menu-death-distance-one", "1 block from death")
+                : plugin.message("respawn-menu-death-distance", "{1} blocks from death")
+                        .replace("{1}", Long.toString(blocks)));
+    }
+
     public static String sharedByLabel(RustBeds plugin, String playerName) {
         return plugin.sharingModeMessage("bed-shared-by-label", "Shared By: {1}",
                         "bed-transferred-by-label", "Transferred By: {1}")
@@ -50,8 +69,12 @@ public final class RespawnPointMenuLore {
     }
 
     public static String anchorChargesLine(RustBeds plugin, BedMenuEntry entry) {
+        return anchorChargesLine(plugin, entry.currentCharges(), entry.maxCharges());
+    }
+
+    static String anchorChargesLine(RustBeds plugin, int charges, int maxCharges) {
         return ChatColor.GOLD + plugin.message("respawn-anchor-charges", "Charges: {1}/{2}")
-                .replace("{1}", Integer.toString(entry.currentCharges()))
-                .replace("{2}", Integer.toString(entry.maxCharges()));
+                .replace("{1}", Integer.toString(charges))
+                .replace("{2}", Integer.toString(maxCharges));
     }
 }
